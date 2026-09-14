@@ -29,3 +29,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return false
     }
 }
+
+extension NSApplication {
+    func relaunch() {
+        let path = Bundle.main.bundlePath
+        let pid = ProcessInfo.processInfo.processIdentifier
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/sh")
+        process.arguments = [
+            "-c",
+            "while /bin/kill -0 \(pid) 2>/dev/null; do /bin/sleep 0.05; done; exec /usr/bin/open \"$1\"",
+            "relaunch",
+            path,
+        ]
+        process.standardInput = FileHandle.nullDevice
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        do {
+            try process.run()
+        } catch {
+            return
+        }
+        terminate(nil)
+    }
+}
