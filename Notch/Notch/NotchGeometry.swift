@@ -53,7 +53,7 @@ struct NotchGeometry: Equatable {
 
     static func make(for screen: NSScreen) -> NotchGeometry {
         let expandedWidth = min(760, max(520, screen.frame.width * 0.62))
-        let expandedHeight: CGFloat = 268
+        let expandedHeight: CGFloat = 300
         let expandedSize = CGSize(width: expandedWidth, height: expandedHeight)
 
         if let real = hardwareNotchFrame(on: screen) {

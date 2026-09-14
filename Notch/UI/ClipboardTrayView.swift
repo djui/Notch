@@ -8,6 +8,7 @@ struct ClipboardTrayView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            NowPlayingBarView()
             header
             if store.filteredItems.isEmpty {
                 emptyState

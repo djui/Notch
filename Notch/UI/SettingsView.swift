@@ -17,6 +17,7 @@ struct SettingsView: View {
                 }
                 Toggle("Show menu bar icon", isOn: Bindable(settings).showStatusItem)
                 Toggle("Open on hover", isOn: Bindable(settings).openOnHover)
+                Toggle("Show Now Playing in notch", isOn: Bindable(settings).showNowPlaying)
                 Toggle("Pause clipboard capture", isOn: Bindable(settings).isPaused)
                 HStack {
                     Text("Open Notch")

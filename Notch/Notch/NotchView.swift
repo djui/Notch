@@ -23,6 +23,9 @@ struct NotchView: View {
                 expandedBody
                     .padding(.top, 8)
                     .transition(.opacity)
+            } else {
+                NowPlayingCollapsedView()
+                    .transition(.opacity)
             }
         }
         .frame(width: host.visualSize.width, height: host.visualSize.height)

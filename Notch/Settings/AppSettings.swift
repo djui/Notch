@@ -11,6 +11,7 @@ final class AppSettings {
         static let historyLimit = "historyLimit"
         static let ignoredBundleIDs = "ignoredBundleIDs"
         static let openOnHover = "openOnHover"
+        static let showNowPlaying = "showNowPlaying"
         static let showStatusItem = "showStatusItem"
         static let hotkeyKeyCode = "hotkeyKeyCode"
         static let hotkeyModifiers = "hotkeyModifiers"
@@ -34,6 +35,10 @@ final class AppSettings {
 
     var openOnHover: Bool {
         didSet { UserDefaults.standard.set(openOnHover, forKey: Keys.openOnHover) }
+    }
+
+    var showNowPlaying: Bool {
+        didSet { UserDefaults.standard.set(showNowPlaying, forKey: Keys.showNowPlaying) }
     }
 
     var showStatusItem: Bool {
@@ -75,6 +80,11 @@ final class AppSettings {
             openOnHover = true
         } else {
             openOnHover = UserDefaults.standard.bool(forKey: Keys.openOnHover)
+        }
+        if UserDefaults.standard.object(forKey: Keys.showNowPlaying) == nil {
+            showNowPlaying = true
+        } else {
+            showNowPlaying = UserDefaults.standard.bool(forKey: Keys.showNowPlaying)
         }
         if UserDefaults.standard.object(forKey: Keys.showStatusItem) == nil {
             showStatusItem = true

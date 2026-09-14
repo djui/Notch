@@ -22,6 +22,8 @@ final class ClipboardModule: NotchModule {
                 .environment(store)
                 .environment(settings)
                 .environment(host ?? AppModel.shared.host)
+                .environment(AppModel.shared.nowPlaying)
+                .environment(AppModel.shared.nowPlaying)
         )
     }
 }

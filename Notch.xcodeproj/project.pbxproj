@@ -61,6 +61,7 @@
 				A10000000000000000000010 /* Sources */,
 				A1000000000000000000000F /* Frameworks */,
 				A10000000000000000000011 /* Resources */,
+				A10000000000000000000021 /* Build MediaRemote bridge */,
 			);
 			buildRules = (
 			);
@@ -112,6 +113,30 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		A10000000000000000000021 /* Build MediaRemote bridge */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 0;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/Helpers/NotchMediaRemote.c",
+			);
+			name = "Build MediaRemote bridge";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/libNotchMediaRemote.dylib",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\nSRC=\"${SRCROOT}/Helpers/NotchMediaRemote.c\"\nDEST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/libNotchMediaRemote.dylib\"\nmkdir -p \"$(dirname \"$DEST\")\"\nclang -dynamiclib -O2 -fvisibility=default -framework CoreFoundation -o \"$DEST\" \"$SRC\"\ncodesign --force --sign - --timestamp=none \"$DEST\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		A10000000000000000000010 /* Sources */ = {

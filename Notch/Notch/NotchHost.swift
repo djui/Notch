@@ -53,6 +53,7 @@ final class NotchHost {
             .environment(self)
             .environment(AppModel.shared.store)
             .environment(AppModel.shared.settings)
+            .environment(AppModel.shared.nowPlaying)
         let hosting = SilentHostingView(rootView: root)
         hosting.frame = NSRect(origin: .zero, size: geometry.collapsedWindowFrame.size)
         hosting.autoresizingMask = [.width, .height]
@@ -476,5 +477,6 @@ struct NotchRootView: View {
             .environment(host)
             .environment(store)
             .environment(settings)
+            .environment(AppModel.shared.nowPlaying)
     }
 }

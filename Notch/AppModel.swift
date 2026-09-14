@@ -7,6 +7,7 @@ final class AppModel {
 
     let settings = AppSettings()
     let store = ClipboardStore()
+    let nowPlaying = NowPlayingMonitor()
     let host: NotchHost
     let monitor: ClipboardMonitor
     let openHotkey = GlobalHotkey(id: 1)
@@ -27,6 +28,7 @@ final class AppModel {
         settings.applyFirstLaunchDefaults()
         store.load()
         monitor.start()
+        nowPlaying.start()
         host.start()
         registerHotkeys()
         statusItem.install(host: host, settings: settings)
@@ -62,6 +64,7 @@ final class AppModel {
     func stop() {
         openHotkey.unregister()
         plainPasteHotkey.unregister()
+        nowPlaying.stop()
         monitor.stop()
         host.stop()
     }
