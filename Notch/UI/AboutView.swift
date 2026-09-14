@@ -61,10 +61,14 @@ struct AboutView: View {
 }
 
 @MainActor
-final class AboutWindowController {
+final class AboutWindowController: NSObject, NSWindowDelegate {
     static let shared = AboutWindowController()
 
     private var window: NSWindow?
+
+    var isVisible: Bool {
+        window?.isVisible == true
+    }
 
     func show() {
         if window == nil {
@@ -73,7 +77,9 @@ final class AboutWindowController {
             window.title = "About \(AppInfo.name)"
             window.styleMask = [.titled, .closable]
             window.isReleasedWhenClosed = false
+            window.hidesOnDeactivate = false
             window.level = .normal
+            window.delegate = self
             hosting.view.layoutSubtreeIfNeeded()
             let size = hosting.view.fittingSize
             if size.width > 0, size.height > 0 {
@@ -81,9 +87,22 @@ final class AboutWindowController {
             }
             self.window = window
         }
+        AccessoryWindowPolicy.refresh()
         NSApp.activate(ignoringOtherApps: true)
         centerOnScreen()
         window?.makeKeyAndOrderFront(nil)
+    }
+
+    func restoreKey() {
+        guard isVisible else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        window?.makeKeyAndOrderFront(nil)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        DispatchQueue.main.async {
+            AccessoryWindowPolicy.refresh()
+        }
     }
 
     private func centerOnScreen() {

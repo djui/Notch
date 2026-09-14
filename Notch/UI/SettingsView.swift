@@ -1,13 +1,79 @@
 import AppKit
 import SwiftUI
 
+private enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
+    case app
+    case clipboard
+    case media
+    case about
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .app: "App"
+        case .clipboard: "Clipboard"
+        case .media: "Media Playback"
+        case .about: "About"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .app: "gearshape"
+        case .clipboard: "doc.on.clipboard"
+        case .media: "play.circle"
+        case .about: "info.circle"
+        }
+    }
+}
+
 struct SettingsView: View {
+    @State private var pane: SettingsPane? = .app
+
+    var body: some View {
+        NavigationSplitView {
+            List(SettingsPane.allCases, selection: $pane) { item in
+                Label(item.title, systemImage: item.symbol)
+                    .tag(item)
+            }
+            .listStyle(.sidebar)
+            .navigationSplitViewColumnWidth(min: 160, ideal: 188, max: 220)
+        } detail: {
+            SettingsDetailView(pane: pane ?? .app)
+                .navigationTitle((pane ?? .app).title)
+        }
+        .navigationSplitViewStyle(.balanced)
+        .toolbar(removing: .sidebarToggle)
+        .frame(minWidth: 640, minHeight: 400)
+        .frame(width: 680, height: 440)
+        .navigationTitle("Notch Settings")
+    }
+}
+
+private struct SettingsDetailView: View {
+    var pane: SettingsPane
+
+    var body: some View {
+        switch pane {
+        case .app:
+            AppSettingsPane()
+        case .clipboard:
+            ClipboardSettingsPane()
+        case .media:
+            MediaPlaybackSettingsPane()
+        case .about:
+            AboutSettingsPane()
+        }
+    }
+}
+
+private struct AppSettingsPane: View {
     @Environment(AppSettings.self) private var settings
-    @State private var isAccessibilityTrusted = PasteService.isTrusted
 
     var body: some View {
         Form {
-            Section("General") {
+            Section {
                 Toggle("Launch at login", isOn: launchAtLoginBinding)
                 if settings.loginItemBlocked {
                     Text("macOS is waiting for approval. Enable Notch in System Settings → General → Login Items.")
@@ -19,8 +85,6 @@ struct SettingsView: View {
                 }
                 Toggle("Show menu bar icon", isOn: Bindable(settings).showStatusItem)
                 Toggle("Open on hover", isOn: Bindable(settings).openOnHover)
-                Toggle("Show Now Playing in notch", isOn: Bindable(settings).showNowPlaying)
-                Toggle("Pause clipboard capture", isOn: Bindable(settings).isPaused)
                 HStack {
                     Text("Open Notch")
                     Spacer()
@@ -30,8 +94,27 @@ struct SettingsView: View {
                     )
                 }
             }
+        }
+        .formStyle(.grouped)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
 
-            Section("History") {
+    private var launchAtLoginBinding: Binding<Bool> {
+        Binding(
+            get: { settings.launchAtLogin },
+            set: { settings.setLaunchAtLogin($0) }
+        )
+    }
+}
+
+private struct ClipboardSettingsPane: View {
+    @Environment(AppSettings.self) private var settings
+    @State private var isAccessibilityTrusted = PasteService.isTrusted
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Pause clipboard capture", isOn: Bindable(settings).isPaused)
                 Stepper(value: Bindable(settings).historyLimit, in: 20...2000, step: 20) {
                     Text("Keep \(settings.historyLimit) items")
                 }
@@ -40,7 +123,7 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Section("Pasting") {
+            Section {
                 HStack {
                     Text("Paste as Plain Text")
                     Spacer()
@@ -68,17 +151,9 @@ struct SettingsView: View {
                     }
                 }
             }
-
-            Section("About") {
-                LabeledContent("Version", value: AppInfo.versionLabel)
-                Button("About Notch…") {
-                    AboutWindowController.shared.show()
-                }
-            }
         }
         .formStyle(.grouped)
-        .frame(width: 520, height: 620)
-        .navigationTitle("Notch Settings")
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onAppear(perform: refreshAccessibilityTrust)
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             refreshAccessibilityTrust()
@@ -94,11 +169,33 @@ struct SettingsView: View {
     private func refreshAccessibilityTrust() {
         isAccessibilityTrusted = PasteService.isTrusted
     }
+}
 
-    private var launchAtLoginBinding: Binding<Bool> {
-        Binding(
-            get: { settings.launchAtLogin },
-            set: { settings.setLaunchAtLogin($0) }
-        )
+private struct MediaPlaybackSettingsPane: View {
+    @Environment(AppSettings.self) private var settings
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Show Now Playing in notch", isOn: Bindable(settings).showNowPlaying)
+            }
+        }
+        .formStyle(.grouped)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+}
+
+private struct AboutSettingsPane: View {
+    var body: some View {
+        Form {
+            Section {
+                LabeledContent("Version", value: AppInfo.versionLabel)
+                Button("About Notch…") {
+                    AboutWindowController.shared.show()
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 }

@@ -193,7 +193,7 @@ final class NotchHost {
         AppModel.shared.store.searchQuery = ""
         visualSize = geometry.collapsedSize
         scheduleWindowShrink()
-        if restoreApp {
+        if restoreApp, !AccessoryWindowPolicy.hasVisibleWindows {
             previousApp?.activate()
         }
     }
@@ -283,6 +283,7 @@ final class NotchHost {
             guard let self, !self.isExpanded else { return }
             self.panel?.setFrameImmediately(self.geometry.collapsedWindowFrame)
             self.panel?.setAcceptsKeyboard(false)
+            AccessoryWindowPolicy.restoreKeyWindow()
         }
         collapseWindowWorkItem = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.38, execute: work)
