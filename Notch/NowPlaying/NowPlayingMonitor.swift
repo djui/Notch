@@ -6,6 +6,7 @@ import Foundation
 final class NowPlayingMonitor {
     private(set) var item: NowPlayingItem?
     private(set) var appIcon: NSImage?
+    private(set) var artwork: NSImage?
 
     private var process: Process?
     private var stdout: Pipe?
@@ -13,6 +14,8 @@ final class NowPlayingMonitor {
     private var restartWork: DispatchWorkItem?
     private var started = false
     private var iconCache: [String: NSImage] = [:]
+    private var artworkTask: Task<Void, Never>?
+    private var artworkKey: String?
 
     func start() {
         guard !started else { return }
@@ -25,8 +28,12 @@ final class NowPlayingMonitor {
         restartWork?.cancel()
         restartWork = nil
         tearDownProcess()
+        artworkTask?.cancel()
+        artworkTask = nil
+        artworkKey = nil
         item = nil
         appIcon = nil
+        artwork = nil
     }
 
     func togglePlayPause() {
@@ -120,13 +127,46 @@ final class NowPlayingMonitor {
         if lineString == "null" {
             item = nil
             appIcon = nil
+            clearArtwork()
             return
         }
         guard let data = lineString.data(using: .utf8),
               let payload = try? JSONDecoder().decode(HelperPayload.self, from: data)
         else { return }
-        item = payload.item
-        appIcon = payload.item.flatMap { icon(for: $0) }
+        let next = payload.item
+        item = next
+        appIcon = next.flatMap { icon(for: $0) }
+        refreshArtwork(for: next)
+    }
+
+    private func refreshArtwork(for next: NowPlayingItem?) {
+        guard let next else {
+            clearArtwork()
+            return
+        }
+        let key = next.artworkKey
+        if key == artworkKey { return }
+        artworkTask?.cancel()
+        artworkKey = key
+        artwork = nil
+        let requested = next
+        artworkTask = Task { [weak self] in
+            let image = await NowPlayingArtwork.resolve(for: requested)
+            guard !Task.isCancelled else { return }
+            self?.applyArtwork(image, key: key)
+        }
+    }
+
+    private func applyArtwork(_ image: NSImage?, key: String) {
+        guard artworkKey == key else { return }
+        artwork = image
+    }
+
+    private func clearArtwork() {
+        artworkTask?.cancel()
+        artworkTask = nil
+        artworkKey = nil
+        artwork = nil
     }
 
     private func handleTermination() {

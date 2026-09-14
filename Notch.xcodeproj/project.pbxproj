@@ -123,7 +123,7 @@
 			inputFileListPaths = (
 			);
 			inputPaths = (
-				"$(SRCROOT)/Helpers/NotchMediaRemote.c",
+				"$(SRCROOT)/Helpers/NotchMediaRemote.m",
 			);
 			name = "Build MediaRemote bridge";
 			outputFileListPaths = (
@@ -133,7 +133,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -euo pipefail\nSRC=\"${SRCROOT}/Helpers/NotchMediaRemote.c\"\nDEST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/libNotchMediaRemote.dylib\"\nmkdir -p \"$(dirname \"$DEST\")\"\nARCH_ARGS=\"\"\nfor arch in ${ARCHS}; do\n  ARCH_ARGS=\"${ARCH_ARGS} -arch ${arch}\"\ndone\n# Xcode signs this dylib with the app. Signing here fails under user-script sandboxing because codesign writes a .cstemp sidecar.\nxcrun clang -dynamiclib -O2 -fvisibility=default -isysroot \"${SDKROOT}\" -mmacosx-version-min=\"${MACOSX_DEPLOYMENT_TARGET}\" ${ARCH_ARGS} -framework CoreFoundation -o \"${DEST}\" \"${SRC}\"\n";
+			shellScript = "set -euo pipefail\nSRC=\"${SRCROOT}/Helpers/NotchMediaRemote.m\"\nDEST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/libNotchMediaRemote.dylib\"\nmkdir -p \"$(dirname \"$DEST\")\"\nARCH_ARGS=\"\"\nfor arch in ${ARCHS}; do\n  ARCH_ARGS=\"${ARCH_ARGS} -arch ${arch}\"\ndone\n# Xcode signs this dylib with the app. Signing here fails under user-script sandboxing because codesign writes a .cstemp sidecar.\nxcrun clang -dynamiclib -O2 -fobjc-arc -fvisibility=default -isysroot \"${SDKROOT}\" -mmacosx-version-min=\"${MACOSX_DEPLOYMENT_TARGET}\" ${ARCH_ARGS} -framework Foundation -framework CoreFoundation -o \"${DEST}\" \"${SRC}\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

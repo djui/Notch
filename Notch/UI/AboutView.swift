@@ -73,7 +73,7 @@ final class AboutWindowController {
             window.title = "About \(AppInfo.name)"
             window.styleMask = [.titled, .closable]
             window.isReleasedWhenClosed = false
-            window.level = .floating
+            window.level = .normal
             hosting.view.layoutSubtreeIfNeeded()
             let size = hosting.view.fittingSize
             if size.width > 0, size.height > 0 {

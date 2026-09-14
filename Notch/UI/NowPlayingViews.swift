@@ -8,7 +8,7 @@ struct NowPlayingCollapsedView: View {
     var body: some View {
         if settings.showNowPlaying, let item = nowPlaying.item {
             HStack(spacing: 6) {
-                NowPlayingAppIcon(size: 15)
+                NowPlayingArtworkView(size: 15, showsAppBadge: false)
                 Text(item.displayLine)
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.white.opacity(item.isPlaying ? 0.92 : 0.62))
@@ -30,9 +30,9 @@ struct NowPlayingBarView: View {
     var body: some View {
         if settings.showNowPlaying, let item = nowPlaying.item {
             HStack(spacing: 10) {
-                NowPlayingAppIcon(size: 22)
+                NowPlayingArtworkView(size: 34, showsAppBadge: true)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(item.title.isEmpty ? item.displayLine : item.title)
+                    Text(item.displayTitle.isEmpty ? item.displayLine : item.displayTitle)
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(.white.opacity(0.92))
                         .lineLimit(1)
@@ -62,17 +62,44 @@ struct NowPlayingBarView: View {
     }
 }
 
-private struct NowPlayingAppIcon: View {
+private struct NowPlayingArtworkView: View {
     @Environment(NowPlayingMonitor.self) private var nowPlaying
     var size: CGFloat
+    var showsAppBadge: Bool
 
     var body: some View {
-        Group {
-            if let icon = nowPlaying.appIcon {
-                Image(nsImage: icon)
+        let media = nowPlaying.artwork ?? nowPlaying.appIcon
+        ZStack(alignment: .bottomTrailing) {
+            artworkImage(media, size: size)
+            if showsAppBadge, nowPlaying.artwork != nil, let appIcon = nowPlaying.appIcon {
+                Image(nsImage: appIcon)
                     .resizable()
                     .interpolation(.high)
                     .aspectRatio(contentMode: .fit)
+                    .frame(width: badgeSize, height: badgeSize)
+                    .clipShape(RoundedRectangle(cornerRadius: badgeSize * 0.22, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: badgeSize * 0.22, style: .continuous)
+                            .strokeBorder(Color.black.opacity(0.35), lineWidth: 0.5)
+                    )
+                    .offset(x: 3, y: 3)
+            }
+        }
+        .frame(width: size, height: size)
+        .padding(.trailing, showsAppBadge ? 3 : 0)
+        .padding(.bottom, showsAppBadge ? 3 : 0)
+    }
+
+    private var badgeSize: CGFloat { max(12, size * 0.42) }
+
+    @ViewBuilder
+    private func artworkImage(_ image: NSImage?, size: CGFloat) -> some View {
+        Group {
+            if let image {
+                Image(nsImage: image)
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(contentMode: .fill)
             } else {
                 Image(systemName: "music.note")
                     .font(.system(size: size * 0.62, weight: .semibold))
@@ -80,7 +107,8 @@ private struct NowPlayingAppIcon: View {
             }
         }
         .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: size * 0.22, style: .continuous))
+        .clipped()
+        .clipShape(RoundedRectangle(cornerRadius: size * 0.18, style: .continuous))
     }
 }
 
