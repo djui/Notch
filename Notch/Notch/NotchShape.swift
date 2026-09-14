@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// MacBook-style notch: outward ears at the top corners, modest convex radii at the bottom.
+/// Overlay clip: MacBook-style notch ears, or a floating Dynamic Island capsule.
 struct NotchShape: Shape {
+    var style: NotchLayoutStyle = .notch
     var earRadius: CGFloat
     var bottomRadius: CGFloat
 
@@ -14,6 +15,6 @@ struct NotchShape: Shape {
     }
 
     func path(in rect: CGRect) -> Path {
-        Path(NotchPath.cgPath(in: rect, earRadius: earRadius, bottomRadius: bottomRadius))
+        Path(NotchPath.cgPath(in: rect, style: style, earRadius: earRadius, bottomRadius: bottomRadius))
     }
 }

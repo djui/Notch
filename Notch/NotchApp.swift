@@ -25,6 +25,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if AccessoryWindowPolicy.hasVisibleWindows {
+            AccessoryWindowPolicy.restoreKeyWindow()
+            return false
+        }
         AppModel.shared.host.toggleFromHotkey()
         return false
     }

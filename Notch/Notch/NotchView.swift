@@ -2,21 +2,48 @@ import SwiftUI
 
 struct NotchView: View {
     @Environment(NotchHost.self) private var host
-    @Environment(AppSettings.self) private var settings
+    @Environment(LiveActivityCenter.self) private var liveActivity
 
     private var earRadius: CGFloat {
-        host.isExpanded ? max(8, host.geometry.earRadius) : host.geometry.earRadius
+        switch host.geometry.layoutStyle {
+        case .notch:
+            return host.geometry.notchCornerRadii(expanded: host.isExpanded).ear
+        case .island:
+            return host.isExpanded ? host.geometry.expandedCornerRadius : host.visualSize.height / 2
+        }
     }
 
     private var bottomRadius: CGFloat {
-        host.isExpanded ? 10 : 8
+        switch host.geometry.layoutStyle {
+        case .notch:
+            return host.geometry.notchCornerRadii(expanded: host.isExpanded).bottom
+        case .island:
+            return earRadius
+        }
     }
 
     private var shape: NotchShape {
-        NotchShape(earRadius: earRadius, bottomRadius: bottomRadius)
+        switch host.geometry.layoutStyle {
+        case .notch:
+            return NotchShape(style: .notch, earRadius: earRadius, bottomRadius: bottomRadius)
+        case .island:
+            let corner = host.isExpanded ? host.geometry.expandedCornerRadius : host.visualSize.height / 2
+            return NotchShape(style: .island, earRadius: corner, bottomRadius: corner)
+        }
     }
 
     var body: some View {
+        ZStack(alignment: .top) {
+            notchBody
+        }
+        .animation(.easeOut(duration: 0.18), value: host.isExpanded)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Color.clear)
+        .preferredColorScheme(.dark)
+        .tint(.white)
+    }
+
+    private var notchBody: some View {
         ZStack(alignment: .top) {
             shape.fill(Color.black)
             if host.isExpanded {
@@ -24,11 +51,12 @@ struct NotchView: View {
                     .padding(.top, 8)
                     .transition(.opacity)
             } else {
-                NowPlayingCollapsedView()
+                collapsedBody
                     .transition(.opacity)
             }
         }
-        .frame(width: host.visualSize.width, height: host.visualSize.height)
+        .modifier(TopAnchoredSize(size: host.visualSize))
+        .animation(host.isExpanded ? Self.expandAnimation : Self.peekAnimation, value: host.visualSize)
         .clipShape(shape)
         .contentShape(shape)
         .onHover { hovering in
@@ -40,22 +68,53 @@ struct NotchView: View {
         }
         .contextMenu {
             Button("Settings…") { host.openSettings() }
-            Button(settings.showStatusItem ? "Hide Menu Bar Icon" : "Show Menu Bar Icon") {
-                settings.showStatusItem.toggle()
-            }
             Divider()
-            Button("About Notch") { host.openAbout() }
             Button("Relaunch Notch") { NSApp.relaunch() }
             Button("Quit Notch") { NSApp.terminate(nil) }
         }
-        .animation(Self.expandAnimation, value: host.visualSize)
-        .animation(.easeOut(duration: 0.18), value: host.isExpanded)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .preferredColorScheme(.dark)
-        .tint(.white)
     }
 
-    private static let expandAnimation = Animation.timingCurve(0.16, 1, 0.3, 1, duration: 0.36)
+    private static let expandAnimation = Animation.spring(response: 0.38, dampingFraction: 0.72)
+    private static let peekAnimation = Animation.easeOut(duration: 0.16)
+
+    /// Interpolates width/height in layout so the top-center edge stays put.
+    /// Animating `.frame` directly lets SwiftUI move the view's center, which
+    /// looks like a drop then zoom.
+    private struct TopAnchoredSize: ViewModifier, Animatable {
+        var size: CGSize
+
+        var animatableData: AnimatablePair<CGFloat, CGFloat> {
+            get { AnimatablePair(size.width, size.height) }
+            set { size = CGSize(width: newValue.first, height: newValue.second) }
+        }
+
+        func body(content: Content) -> some View {
+            content.frame(width: size.width, height: size.height, alignment: .top)
+        }
+    }
+
+    private var collapsedSceneID: String {
+        switch liveActivity.current {
+        case .charging: "charging"
+        case .lowPower: "lowPower"
+        case .focus(let focus):
+            "focus-\(focus.name)-\(focus.symbol)-\(focus.isOn)-\(focus.tintColorName)"
+        case nil: "nowPlaying"
+        }
+    }
+
+    private var collapsedBody: some View {
+        ZStack {
+            if let activity = liveActivity.current {
+                LiveActivityView(activity: activity)
+                    .transition(.opacity)
+            } else {
+                NowPlayingCollapsedView()
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.32), value: collapsedSceneID)
+    }
 
     @ViewBuilder
     private var expandedBody: some View {

@@ -14,6 +14,10 @@ struct NowPlayingCollapsedView: View {
                     .foregroundStyle(.white.opacity(item.isPlaying ? 0.92 : 0.62))
                     .lineLimit(1)
                     .truncationMode(.tail)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if item.isPlaying {
+                    EqualizerView(isPlaying: true, height: 11)
+                }
             }
             .padding(.horizontal, 16)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -44,6 +48,10 @@ struct NowPlayingBarView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+
+                if item.isPlaying {
+                    EqualizerView(isPlaying: true, height: 14)
+                }
 
                 HStack(spacing: 4) {
                     NowPlayingControlButton(systemName: "backward.fill") {

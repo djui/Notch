@@ -46,26 +46,50 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         open.keyEquivalentModifierMask = shortcut.nsEventModifiers
         open.target = self
 
-        let paused = settings?.isPaused == true
-        let pause = menu.addItem(
-            withTitle: paused ? "Resume Capture" : "Pause Capture",
-            action: #selector(togglePause),
-            keyEquivalent: ""
-        )
-        pause.target = self
-
-        let plainShortcut = settings?.plainPasteShortcut ?? .defaultPlainPaste
-        if plainShortcut.isValidGlobal, !plainShortcut.menuKeyEquivalent.isEmpty {
-            let plain = menu.addItem(
-                withTitle: "Paste as Plain Text",
-                action: #selector(pastePlain),
-                keyEquivalent: plainShortcut.menuKeyEquivalent
+        if settings?.clipboardEnabled == true {
+            let paused = settings?.isPaused == true
+            let pause = menu.addItem(
+                withTitle: paused ? "Resume Capture" : "Pause Capture",
+                action: #selector(togglePause),
+                keyEquivalent: ""
             )
-            plain.keyEquivalentModifierMask = plainShortcut.nsEventModifiers
-            plain.target = self
+            pause.target = self
+
+            let clear = menu.addItem(
+                withTitle: "Clear Clipboard History",
+                action: #selector(clearHistory),
+                keyEquivalent: ""
+            )
+            clear.target = self
+            clear.isEnabled = AppModel.shared.store.unpinnedCount > 0
+
+            let plainShortcut = settings?.plainPasteShortcut ?? .defaultPlainPaste
+            if plainShortcut.isValidGlobal, !plainShortcut.menuKeyEquivalent.isEmpty {
+                let plain = menu.addItem(
+                    withTitle: "Paste as Plain Text",
+                    action: #selector(pastePlain),
+                    keyEquivalent: plainShortcut.menuKeyEquivalent
+                )
+                plain.keyEquivalentModifierMask = plainShortcut.nsEventModifiers
+                plain.target = self
+            }
         }
 
         menu.addItem(.separator())
+        let layoutMenu = NSMenu()
+        for style in NotchLayoutStyle.allCases {
+            let item = layoutMenu.addItem(
+                withTitle: style.title,
+                action: #selector(selectLayout(_:)),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.representedObject = style.rawValue
+            item.state = settings?.layoutStyle == style ? .on : .off
+        }
+        let layoutItem = menu.addItem(withTitle: "Layout", action: nil, keyEquivalent: "")
+        menu.setSubmenu(layoutMenu, for: layoutItem)
+
         let settingsItem = menu.addItem(withTitle: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
         settingsItem.target = self
 
@@ -93,6 +117,16 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     @objc private func togglePause() {
         settings?.isPaused.toggle()
+    }
+
+    @objc private func clearHistory() {
+        AppModel.shared.store.confirmAndClearHistory()
+    }
+
+    @objc private func selectLayout(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String,
+              let style = NotchLayoutStyle(rawValue: raw) else { return }
+        settings?.layoutStyle = style
     }
 
     @objc private func openSettings() {

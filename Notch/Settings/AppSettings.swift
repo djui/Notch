@@ -11,8 +11,11 @@ final class AppSettings {
         static let historyLimit = "historyLimit"
         static let ignoredBundleIDs = "ignoredBundleIDs"
         static let openOnHover = "openOnHover"
+        static let clipboardEnabled = "clipboardEnabled"
         static let showNowPlaying = "showNowPlaying"
         static let showStatusItem = "showStatusItem"
+        static let showInSystemSurfaces = "showInSystemSurfaces"
+        static let layoutStyle = "layoutStyle"
         static let hotkeyKeyCode = "hotkeyKeyCode"
         static let hotkeyModifiers = "hotkeyModifiers"
         static let plainHotkeyKeyCode = "plainHotkeyKeyCode"
@@ -34,7 +37,17 @@ final class AppSettings {
     }
 
     var openOnHover: Bool {
-        didSet { UserDefaults.standard.set(openOnHover, forKey: Keys.openOnHover) }
+        didSet {
+            UserDefaults.standard.set(openOnHover, forKey: Keys.openOnHover)
+            AppModel.shared.host.applyOpenOnHover()
+        }
+    }
+
+    var clipboardEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(clipboardEnabled, forKey: Keys.clipboardEnabled)
+            AppModel.shared.applyClipboardEnabled()
+        }
     }
 
     var showNowPlaying: Bool {
@@ -45,6 +58,20 @@ final class AppSettings {
         didSet {
             UserDefaults.standard.set(showStatusItem, forKey: Keys.showStatusItem)
             AppModel.shared.statusItem.applyVisibility()
+        }
+    }
+
+    var showInSystemSurfaces: Bool {
+        didSet {
+            UserDefaults.standard.set(showInSystemSurfaces, forKey: Keys.showInSystemSurfaces)
+            AppModel.shared.host.applyOverlayPolicy()
+        }
+    }
+
+    var layoutStyle: NotchLayoutStyle {
+        didSet {
+            UserDefaults.standard.set(layoutStyle.rawValue, forKey: Keys.layoutStyle)
+            AppModel.shared.host.applyLayoutStyle()
         }
     }
 
@@ -81,6 +108,11 @@ final class AppSettings {
         } else {
             openOnHover = UserDefaults.standard.bool(forKey: Keys.openOnHover)
         }
+        if UserDefaults.standard.object(forKey: Keys.clipboardEnabled) == nil {
+            clipboardEnabled = true
+        } else {
+            clipboardEnabled = UserDefaults.standard.bool(forKey: Keys.clipboardEnabled)
+        }
         if UserDefaults.standard.object(forKey: Keys.showNowPlaying) == nil {
             showNowPlaying = true
         } else {
@@ -90,6 +122,13 @@ final class AppSettings {
             showStatusItem = true
         } else {
             showStatusItem = UserDefaults.standard.bool(forKey: Keys.showStatusItem)
+        }
+        showInSystemSurfaces = UserDefaults.standard.bool(forKey: Keys.showInSystemSurfaces)
+        if let stored = UserDefaults.standard.string(forKey: Keys.layoutStyle),
+           let style = NotchLayoutStyle(rawValue: stored) {
+            layoutStyle = style
+        } else {
+            layoutStyle = .notch
         }
         openShortcut = Self.loadShortcut(
             keyCodeKey: Keys.hotkeyKeyCode,
@@ -123,12 +162,15 @@ final class AppSettings {
         return stored.isValidLocal ? stored : fallback
     }
 
-    func applyFirstLaunchDefaults() {
+    @discardableResult
+    func applyFirstLaunchDefaults() -> Bool {
         if !UserDefaults.standard.bool(forKey: Keys.didCompleteFirstLaunch) {
             UserDefaults.standard.set(true, forKey: Keys.didCompleteFirstLaunch)
             setLaunchAtLogin(true)
+            return true
         } else {
             launchAtLogin = SMAppService.mainApp.status == .enabled
+            return false
         }
     }
 
@@ -151,5 +193,19 @@ final class AppSettings {
 
     func openLoginItemsSettings() {
         SMAppService.openSystemSettingsLoginItems()
+    }
+}
+
+enum NotchLayoutStyle: String, CaseIterable, Identifiable, Hashable {
+    case notch
+    case island
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .notch: "Notch"
+        case .island: "Dynamic Island"
+        }
     }
 }

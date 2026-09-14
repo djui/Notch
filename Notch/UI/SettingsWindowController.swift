@@ -4,7 +4,9 @@ import SwiftUI
 enum AccessoryWindowPolicy {
     @MainActor
     static var hasVisibleWindows: Bool {
-        SettingsWindowController.shared.isVisible || AboutWindowController.shared.isVisible
+        SettingsWindowController.shared.isVisible
+            || AboutWindowController.shared.isVisible
+            || PermissionOnboardingController.shared.isVisible
     }
 
     @MainActor
@@ -22,6 +24,8 @@ enum AccessoryWindowPolicy {
             SettingsWindowController.shared.restoreKey()
         } else if AboutWindowController.shared.isVisible {
             AboutWindowController.shared.restoreKey()
+        } else if PermissionOnboardingController.shared.isVisible {
+            PermissionOnboardingController.shared.restoreKey()
         }
     }
 }

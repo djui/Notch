@@ -5,6 +5,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
     case app
     case clipboard
     case media
+    case permissions
     case about
 
     var id: Self { self }
@@ -14,6 +15,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
         case .app: "App"
         case .clipboard: "Clipboard"
         case .media: "Media Playback"
+        case .permissions: "Permissions"
         case .about: "About"
         }
     }
@@ -23,6 +25,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
         case .app: "gearshape"
         case .clipboard: "doc.on.clipboard"
         case .media: "play.circle"
+        case .permissions: "hand.raised"
         case .about: "info.circle"
         }
     }
@@ -62,6 +65,8 @@ private struct SettingsDetailView: View {
             ClipboardSettingsPane()
         case .media:
             MediaPlaybackSettingsPane()
+        case .permissions:
+            PermissionsSettingsPane()
         case .about:
             AboutSettingsPane()
         }
@@ -74,6 +79,12 @@ private struct AppSettingsPane: View {
     var body: some View {
         Form {
             Section {
+                Picker("Layout", selection: Bindable(settings).layoutStyle) {
+                    ForEach(NotchLayoutStyle.allCases) { style in
+                        Text(style.title).tag(style)
+                    }
+                }
+                .pickerStyle(.segmented)
                 Toggle("Launch at login", isOn: launchAtLoginBinding)
                 if settings.loginItemBlocked {
                     Text("macOS is waiting for approval. Enable Notch in System Settings → General → Login Items.")
@@ -85,6 +96,7 @@ private struct AppSettingsPane: View {
                 }
                 Toggle("Show menu bar icon", isOn: Bindable(settings).showStatusItem)
                 Toggle("Open on hover", isOn: Bindable(settings).openOnHover)
+                Toggle("Show during fullscreen, Mission Control, and screenshots", isOn: Bindable(settings).showInSystemSurfaces)
                 HStack {
                     Text("Open Notch")
                     Spacer()
@@ -109,10 +121,17 @@ private struct AppSettingsPane: View {
 
 private struct ClipboardSettingsPane: View {
     @Environment(AppSettings.self) private var settings
-    @State private var isAccessibilityTrusted = PasteService.isTrusted
+    @Environment(ClipboardStore.self) private var store
 
     var body: some View {
         Form {
+            Section {
+                Toggle("Enable clipboard history", isOn: Bindable(settings).clipboardEnabled)
+                Text("When off, Notch stops capturing copies and hides clipboard in the notch.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section {
                 Toggle("Pause clipboard capture", isOn: Bindable(settings).isPaused)
                 Stepper(value: Bindable(settings).historyLimit, in: 20...2000, step: 20) {
@@ -122,6 +141,18 @@ private struct ClipboardSettingsPane: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            .disabled(!settings.clipboardEnabled)
+
+            Section {
+                Button("Clear Clipboard History", role: .destructive) {
+                    store.confirmAndClearHistory()
+                }
+                .disabled(store.unpinnedCount == 0)
+                Text("Removes unpinned clips. Pinned items stay.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .disabled(!settings.clipboardEnabled)
 
             Section {
                 HStack {
@@ -133,41 +164,11 @@ private struct ClipboardSettingsPane: View {
                         allowShiftOnly: true
                     )
                 }
-                HStack {
-                    Text("Accessibility")
-                    Spacer()
-                    if isAccessibilityTrusted {
-                        Label("Granted", systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                            .labelStyle(.titleAndIcon)
-                    } else {
-                        Text("Required to paste")
-                            .foregroundStyle(.orange)
-                    }
-                }
-                if !isAccessibilityTrusted {
-                    Button("Request Accessibility Access") {
-                        PasteService.requestTrust()
-                    }
-                }
             }
+            .disabled(!settings.clipboardEnabled)
         }
         .formStyle(.grouped)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .onAppear(perform: refreshAccessibilityTrust)
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            refreshAccessibilityTrust()
-        }
-        .task {
-            while !Task.isCancelled {
-                refreshAccessibilityTrust()
-                try? await Task.sleep(for: .seconds(1))
-            }
-        }
-    }
-
-    private func refreshAccessibilityTrust() {
-        isAccessibilityTrusted = PasteService.isTrusted
     }
 }
 
@@ -182,6 +183,127 @@ private struct MediaPlaybackSettingsPane: View {
         }
         .formStyle(.grouped)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+}
+
+private struct PermissionsSettingsPane: View {
+    @State private var center = PermissionCenter()
+
+    var body: some View {
+        Form {
+            Section("Paste") {
+                permissionStatusRow(
+                    title: "Accessibility",
+                    detail: "Required to paste into other apps.",
+                    state: center.accessibilityTrusted ? .granted : .denied
+                )
+                if !center.accessibilityTrusted {
+                    Text("macOS grants Accessibility per app copy. Xcode Debug and a released Notch.app are different binaries. Enable the entry that matches this build, then relaunch.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(Bundle.main.bundlePath)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.tertiary)
+                        .textSelection(.enabled)
+                    HStack {
+                        Button("Request Access") {
+                            center.requestAccessibility()
+                        }
+                        Button("Open System Settings") {
+                            PermissionStatus.openAccessibilitySettings()
+                        }
+                        Button("Relaunch Notch") {
+                            NSApp.relaunch()
+                        }
+                    }
+                }
+            }
+
+            Section("Focus") {
+                permissionStatusRow(
+                    title: "Full Disk Access",
+                    detail: "Required to show the current Focus mode name and icon.",
+                    state: center.focusDatabaseReadable ? .granted : .denied
+                )
+                if !center.focusDatabaseReadable {
+                    Button("Open System Settings") {
+                        PermissionStatus.openFullDiskAccessSettings()
+                    }
+                }
+            }
+
+            Section("Automation") {
+                ForEach(AutomationTarget.allCases) { target in
+                    let state = center.automation[target] ?? .notDetermined
+                    permissionStatusRow(
+                        title: target.title,
+                        detail: automationDetail(target),
+                        state: state
+                    )
+                    if state != .granted, state != .unavailable {
+                        Button("Request \(target.title)") {
+                            center.requestAutomation(target)
+                        }
+                    }
+                }
+                Button("Open Automation Settings") {
+                    PermissionStatus.openAutomationSettings()
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .onAppear { center.refresh() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            center.refresh()
+        }
+        .task {
+            while !Task.isCancelled {
+                center.refreshAccessibility()
+                try? await Task.sleep(for: .seconds(1))
+            }
+        }
+    }
+
+    private func automationDetail(_ target: AutomationTarget) -> String {
+        switch target {
+        case .music, .spotify:
+            "Now Playing artwork and control."
+        case .safari, .chrome:
+            "Identify tabs with playing audio."
+        }
+    }
+
+    private func permissionStatusRow(title: String, detail: String, state: PermissionState) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            statusLabel(state)
+        }
+    }
+
+    @ViewBuilder
+    private func statusLabel(_ state: PermissionState) -> some View {
+        switch state {
+        case .granted:
+            Label("Granted", systemImage: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+                .labelStyle(.titleAndIcon)
+        case .denied:
+            Text("Not granted")
+                .foregroundStyle(.orange)
+        case .notDetermined:
+            Text("Not determined")
+                .foregroundStyle(.secondary)
+        case .unavailable:
+            Text("Not installed")
+                .foregroundStyle(.tertiary)
+        }
     }
 }
 

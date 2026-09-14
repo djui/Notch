@@ -23,7 +23,9 @@ struct GlassCardBackground: View {
                 shape.fill(Color.primary.opacity(selected ? 0.10 : 0.06))
             }
             .overlay {
-                shape.strokeBorder(Color.primary.opacity(selected ? 0.38 : 0.12), lineWidth: 1)
+                shape
+                    .inset(by: 1)
+                    .strokeBorder(Color.primary.opacity(selected ? 0.55 : 0.12), lineWidth: 1)
             }
     }
 }

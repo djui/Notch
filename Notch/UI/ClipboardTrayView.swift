@@ -9,15 +9,17 @@ struct ClipboardTrayView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             NowPlayingBarView()
-            header
-            if store.filteredItems.isEmpty {
-                emptyState
-            } else {
-                cardStrip
+            if settings.clipboardEnabled {
+                header
+                if store.filteredItems.isEmpty {
+                    emptyState
+                } else {
+                    cardStrip
+                }
             }
         }
-        .padding(.horizontal, 24)
-        .padding(.bottom, 14)
+        .padding(.horizontal, 28)
+        .padding(.bottom, 22)
         .padding(.top, 4)
         .onChange(of: host.searchFocusGeneration) { _, _ in
             searchFocused = true
@@ -59,9 +61,23 @@ struct ClipboardTrayView: View {
             } label: {
                 Image(systemName: settings.isPaused ? "pause.circle.fill" : "pause.circle")
                     .foregroundStyle(.primary.opacity(0.7))
+                    .padding(6)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .help(settings.isPaused ? "Resume capture" : "Pause capture")
+
+            Button {
+                store.confirmAndClearHistory()
+            } label: {
+                Image(systemName: "trash")
+                    .foregroundStyle(.primary.opacity(store.unpinnedCount == 0 ? 0.28 : 0.7))
+                    .padding(6)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(store.unpinnedCount == 0)
+            .help("Clear history")
 
             Button {
                 host.openSettings()
@@ -91,10 +107,6 @@ struct ClipboardTrayView: View {
 
     private var cardStrip: some View {
         CardStripView()
-    }
-
-    private func paste(_ item: ClipItem, plain: Bool = false) {
-        host.pasteItem(item, plainText: plain)
     }
 }
 
@@ -132,12 +144,6 @@ private struct CardStripView: View {
                         selected: store.selectedID == item.id
                     )
                     .id(item.id)
-                    .onTapGesture(count: 2) {
-                        host.pasteItem(item, plainText: false)
-                    }
-                    .onTapGesture {
-                        store.select(item)
-                    }
                     .contextMenu {
                         Button("Paste") { host.pasteItem(item, plainText: false) }
                         Button("Paste as Plain Text") { host.pasteItem(item, plainText: true) }
@@ -151,9 +157,10 @@ private struct CardStripView: View {
                     }
                 }
             }
-            .padding(.vertical, 2)
+            .padding(.vertical, 8)
             .scrollTargetLayout()
         }
+        .scrollClipDisabled()
         .scrollPosition($position)
         .onScrollGeometryChange(for: ScrollMetrics.self) { geometry in
             ScrollMetrics(

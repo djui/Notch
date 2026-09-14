@@ -16,6 +16,7 @@ final class ClipboardMonitor {
     }
 
     func start() {
+        guard timer == nil else { return }
         lastChangeCount = NSPasteboard.general.changeCount
         let timer = Timer(timeInterval: 0.4, repeats: true) { [weak self] _ in
             Task { @MainActor in
@@ -44,6 +45,7 @@ final class ClipboardMonitor {
     }
 
     func capture(from pasteboard: NSPasteboard) {
+        guard settings.clipboardEnabled else { return }
         guard !settings.isPaused else { return }
         guard !ClipboardPrivacy.shouldIgnore(pasteboard) else { return }
 

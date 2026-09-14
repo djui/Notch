@@ -11,6 +11,39 @@ struct ClipCardView: View {
     @State private var exportDragStarted = false
 
     var body: some View {
+        Button(action: pasteCard) {
+            cardContent
+        }
+        .buttonStyle(.plain)
+        .overlay(alignment: .topTrailing) {
+            pinButton
+                .padding(.top, 8)
+                .padding(.trailing, 8)
+        }
+        .pointerStyle(.link)
+        .onHover { hovering in
+            if hovering {
+                store.select(item)
+            }
+        }
+        .onChange(of: host.isDraggingClip) { _, dragging in
+            if !dragging {
+                exportDragStarted = false
+            }
+        }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 12, coordinateSpace: .local)
+                .onChanged { value in
+                    guard !exportDragStarted, !host.isDraggingClip else { return }
+                    let distance = hypot(value.translation.width, value.translation.height)
+                    guard distance > 14 else { return }
+                    exportDragStarted = true
+                    host.startDragging(item)
+                }
+        )
+    }
+
+    private var cardContent: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 Image(systemName: item.kind.symbolName)
@@ -23,14 +56,8 @@ struct ClipCardView: View {
                         .font(.system(size: 9, weight: .medium, design: .rounded))
                         .foregroundStyle(.tertiary)
                 }
-                Button {
-                    store.togglePin(item)
-                } label: {
-                    Image(systemName: item.isPinned ? "pin.fill" : "pin")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(item.isPinned ? Color.yellow : Color.secondary)
-                }
-                .buttonStyle(.plain)
+                Color.clear
+                    .frame(width: 18, height: 14)
             }
             .foregroundStyle(.primary.opacity(0.78))
 
@@ -53,32 +80,28 @@ struct ClipCardView: View {
         .background {
             GlassCardBackground(cornerRadius: 16, selected: selected)
         }
-        .overlay(alignment: .topLeading) {
-            if selected {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.45), lineWidth: 1.2)
-            }
+        .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var pinButton: some View {
+        Button {
+            store.togglePin(item)
+        } label: {
+            Image(systemName: item.isPinned ? "pin.fill" : "pin")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(item.isPinned ? Color.yellow : Color.secondary)
+                .padding(6)
+                .contentShape(Rectangle())
         }
-        .onHover { hovering in
-            if hovering {
-                store.select(item)
-            }
-        }
-        .onChange(of: host.isDraggingClip) { _, dragging in
-            if !dragging {
-                exportDragStarted = false
-            }
-        }
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 8, coordinateSpace: .local)
-                .onChanged { value in
-                    guard !exportDragStarted, !host.isDraggingClip else { return }
-                    let distance = hypot(value.translation.width, value.translation.height)
-                    guard distance > 10 else { return }
-                    exportDragStarted = true
-                    host.startDragging(item)
-                }
-        )
+        .buttonStyle(.plain)
+        .pointerStyle(.default)
+        .help(item.isPinned ? "Unpin" : "Pin")
+    }
+
+    private func pasteCard() {
+        guard !exportDragStarted, !host.isDraggingClip else { return }
+        let modifiers = NSEvent.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        host.pasteItem(item, plainText: modifiers.contains(.shift) || modifiers.contains(.option))
     }
 
     @ViewBuilder

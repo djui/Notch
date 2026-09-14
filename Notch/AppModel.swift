@@ -8,6 +8,7 @@ final class AppModel {
     let settings = AppSettings()
     let store = ClipboardStore()
     let nowPlaying = NowPlayingMonitor()
+    let liveActivity = LiveActivityCenter()
     let host: NotchHost
     let monitor: ClipboardMonitor
     let openHotkey = GlobalHotkey(id: 1)
@@ -25,13 +26,31 @@ final class AppModel {
     func start() {
         guard !started else { return }
         started = true
-        settings.applyFirstLaunchDefaults()
+        let firstLaunch = settings.applyFirstLaunchDefaults()
         store.load()
-        monitor.start()
+        if settings.clipboardEnabled {
+            monitor.start()
+        }
         nowPlaying.start()
+        liveActivity.start()
         host.start()
         registerHotkeys()
         statusItem.install(host: host, settings: settings)
+        if firstLaunch {
+            PermissionOnboardingController.shared.show()
+        }
+    }
+
+    func applyClipboardEnabled() {
+        guard started else { return }
+        if settings.clipboardEnabled {
+            monitor.start()
+        } else {
+            monitor.stop()
+            store.searchQuery = ""
+        }
+        registerHotkeys()
+        statusItem.refreshMenu()
     }
 
     func registerHotkeys() {
@@ -41,7 +60,7 @@ final class AppModel {
         }
 
         let plain = settings.plainPasteShortcut
-        if plain.isValidGlobal {
+        if settings.clipboardEnabled, plain.isValidGlobal {
             plainPasteHotkey.register(keyCode: plain.keyCode, modifiers: plain.carbonModifiers) { [weak self] in
                 self?.pasteSelectedAsPlainText()
             }
@@ -52,6 +71,7 @@ final class AppModel {
     }
 
     func pasteSelectedAsPlainText() {
+        guard settings.clipboardEnabled else { return }
         guard let item = store.selectedItem ?? store.filteredItems.first else { return }
         if host.isExpanded {
             host.pasteItem(item, plainText: true)
@@ -65,6 +85,7 @@ final class AppModel {
         openHotkey.unregister()
         plainPasteHotkey.unregister()
         nowPlaying.stop()
+        liveActivity.stop()
         monitor.stop()
         host.stop()
     }

@@ -1,4 +1,5 @@
 import AppKit
+import QuartzCore
 import SwiftUI
 
 final class NotchPanel: NSPanel {
@@ -16,10 +17,10 @@ final class NotchPanel: NSPanel {
         hasShadow = false
         collectionBehavior = [
             .canJoinAllSpaces,
-            .stationary,
-            .fullScreenAuxiliary,
+            .transient,
             .ignoresCycle
         ]
+        sharingType = .none
         isMovable = false
         hidesOnDeactivate = false
         isFloatingPanel = true
@@ -28,6 +29,40 @@ final class NotchPanel: NSPanel {
         titleVisibility = .hidden
         titlebarAppearsTransparent = true
         isExcludedFromWindowsMenu = true
+        applyOverlayPolicy(showInSystemSurfaces: false)
+        applyNotchLevel()
+        acceptsMouseMovedEvents = true
+    }
+
+    func embed(hosting: NSView) {
+        let container = NotchContainerView(frame: .zero)
+        contentView = container
+
+        hosting.frame = container.bounds
+        hosting.autoresizingMask = [.width, .height]
+        hosting.wantsLayer = true
+        hosting.layer?.isOpaque = false
+        hosting.layer?.backgroundColor = NSColor.clear.cgColor
+        container.addSubview(hosting)
+    }
+
+    func applyOverlayPolicy(showInSystemSurfaces: Bool) {
+        if showInSystemSurfaces {
+            collectionBehavior = [
+                .canJoinAllSpaces,
+                .stationary,
+                .fullScreenAuxiliary,
+                .ignoresCycle
+            ]
+            sharingType = .readOnly
+        } else {
+            collectionBehavior = [
+                .canJoinAllSpaces,
+                .transient,
+                .ignoresCycle
+            ]
+            sharingType = .none
+        }
         applyNotchLevel()
     }
 
@@ -56,7 +91,10 @@ final class NotchPanel: NSPanel {
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0
             context.allowsImplicitAnimation = false
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
             setFrame(frame, display: display)
+            CATransaction.commit()
         }
         applyNotchLevel()
     }
@@ -78,7 +116,11 @@ final class NotchPanel: NSPanel {
 final class SilentHostingView<Content: View>: NSHostingView<Content> {
     var shouldAcceptHit: ((NSPoint) -> Bool)?
 
-    override var acceptsFirstResponder: Bool { true }
+    override var isOpaque: Bool { false }
+
+    override var acceptsFirstResponder: Bool {
+        (window as? NotchPanel)?.allowsKey ?? false
+    }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
         if let shouldAcceptHit, !shouldAcceptHit(point) {
@@ -94,4 +136,13 @@ final class SilentHostingView<Content: View>: NSHostingView<Content> {
     override func interpretKeyEvents(_ eventArray: [NSEvent]) {}
 
     override func doCommand(by selector: Selector) {}
+}
+
+final class NotchContainerView: NSView {
+    override var isOpaque: Bool { false }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        let hit = super.hitTest(point)
+        return hit === self ? nil : hit
+    }
 }

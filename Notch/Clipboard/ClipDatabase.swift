@@ -91,6 +91,10 @@ final class ClipDatabase {
         })
     }
 
+    func deleteUnpinned() throws {
+        try exec("DELETE FROM clips WHERE is_pinned = 0")
+    }
+
     func trim(limit: Int) throws -> [ClipItem] {
         guard limit > 0 else { return [] }
         let sql = """

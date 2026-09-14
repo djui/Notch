@@ -27,8 +27,13 @@ final class ClipboardStore {
         filteredItems.first { $0.id == selectedID } ?? filteredItems.first
     }
 
+    var unpinnedCount: Int {
+        items.reduce(0) { $0 + ($1.isPinned ? 0 : 1) }
+    }
+
     private var database: ClipDatabase?
     private let mediaDirectory: URL
+    private var alertAnchor: NSWindow?
 
     init() {
         let support = Self.supportDirectory()
@@ -79,6 +84,53 @@ final class ClipboardStore {
         removeMedia(for: item)
         if selectedID == item.id {
             selectedID = filteredItems.first?.id
+        }
+    }
+
+    func confirmAndClearHistory() {
+        let alert = NSAlert()
+        alert.messageText = "Clear clipboard history?"
+        alert.informativeText = "Unpinned clips will be deleted. Pinned items are kept."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Clear History")
+        alert.addButton(withTitle: "Cancel")
+
+        let screen = NSScreen.screens.first { $0.displayID == AppModel.shared.host.geometry.displayID }
+            ?? NSScreen.main
+            ?? NSScreen.screens[0]
+        let visible = screen.visibleFrame
+        let anchor = NSPanel(
+            contentRect: NSRect(x: visible.midX - 1, y: visible.midY - 1, width: 2, height: 2),
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        anchor.isOpaque = false
+        anchor.backgroundColor = .clear
+        anchor.hasShadow = false
+        anchor.level = .floating
+        anchor.collectionBehavior = [.canJoinAllSpaces, .transient, .ignoresCycle]
+        anchor.isReleasedWhenClosed = false
+        alertAnchor = anchor
+        NSApp.activate(ignoringOtherApps: true)
+        anchor.orderFrontRegardless()
+        alert.beginSheetModal(for: anchor) { [weak self] response in
+            anchor.close()
+            self?.alertAnchor = nil
+            if response == .alertFirstButtonReturn {
+                self?.clearHistory()
+            }
+        }
+    }
+
+    func clearHistory() {
+        let removed = items.filter { !$0.isPinned }
+        guard !removed.isEmpty else { return }
+        items.removeAll { !$0.isPinned }
+        try? database?.deleteUnpinned()
+        removed.forEach(removeMedia)
+        if let selectedID, !items.contains(where: { $0.id == selectedID }) {
+            self.selectedID = filteredItems.first?.id
         }
     }
 
