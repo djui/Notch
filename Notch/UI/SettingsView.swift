@@ -1,7 +1,9 @@
+import AppKit
 import SwiftUI
 
 struct SettingsView: View {
     @Environment(AppSettings.self) private var settings
+    @State private var isAccessibilityTrusted = PasteService.isTrusted
 
     var body: some View {
         Form {
@@ -51,10 +53,16 @@ struct SettingsView: View {
                 HStack {
                     Text("Accessibility")
                     Spacer()
-                    Text(PasteService.isTrusted ? "Granted" : "Required to paste")
-                        .foregroundStyle(PasteService.isTrusted ? Color.secondary : Color.orange)
+                    if isAccessibilityTrusted {
+                        Label("Granted", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                            .labelStyle(.titleAndIcon)
+                    } else {
+                        Text("Required to paste")
+                            .foregroundStyle(.orange)
+                    }
                 }
-                if !PasteService.isTrusted {
+                if !isAccessibilityTrusted {
                     Button("Request Accessibility Access") {
                         PasteService.requestTrust()
                     }
@@ -71,6 +79,20 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .frame(width: 520, height: 620)
         .navigationTitle("Notch Settings")
+        .onAppear(perform: refreshAccessibilityTrust)
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            refreshAccessibilityTrust()
+        }
+        .task {
+            while !Task.isCancelled {
+                refreshAccessibilityTrust()
+                try? await Task.sleep(for: .seconds(1))
+            }
+        }
+    }
+
+    private func refreshAccessibilityTrust() {
+        isAccessibilityTrusted = PasteService.isTrusted
     }
 
     private var launchAtLoginBinding: Binding<Bool> {
