@@ -74,10 +74,25 @@ final class AboutWindowController {
             window.styleMask = [.titled, .closable]
             window.isReleasedWhenClosed = false
             window.level = .floating
-            window.center()
+            hosting.view.layoutSubtreeIfNeeded()
+            let size = hosting.view.fittingSize
+            if size.width > 0, size.height > 0 {
+                window.setContentSize(size)
+            }
             self.window = window
         }
         NSApp.activate(ignoringOtherApps: true)
+        centerOnScreen()
         window?.makeKeyAndOrderFront(nil)
+    }
+
+    private func centerOnScreen() {
+        guard let window else { return }
+        let screen = NotchGeometry.preferredScreen(preferMouse: false)
+        let visible = screen.visibleFrame
+        var frame = window.frame
+        frame.origin.x = visible.midX - frame.width / 2
+        frame.origin.y = visible.midY - frame.height / 2
+        window.setFrameOrigin(frame.origin)
     }
 }
