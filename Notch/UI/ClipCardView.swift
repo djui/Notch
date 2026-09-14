@@ -21,18 +21,18 @@ struct ClipCardView: View {
                 if index < 9 {
                     Text("⌘\(index + 1)")
                         .font(.system(size: 9, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.4))
+                        .foregroundStyle(.tertiary)
                 }
                 Button {
                     store.togglePin(item)
                 } label: {
                     Image(systemName: item.isPinned ? "pin.fill" : "pin")
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(item.isPinned ? Color.yellow : Color.white.opacity(0.45))
+                        .foregroundStyle(item.isPinned ? Color.yellow : Color.secondary)
                 }
                 .buttonStyle(.plain)
             }
-            .foregroundStyle(.white.opacity(0.72))
+            .foregroundStyle(.primary.opacity(0.78))
 
             preview
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -46,7 +46,7 @@ struct ClipCardView: View {
                 Text(item.createdAt, formatter: Self.relativeFormatter)
             }
             .font(.system(size: 10))
-            .foregroundStyle(.white.opacity(0.4))
+            .foregroundStyle(.tertiary)
         }
         .padding(12)
         .frame(width: 188, height: 196)
@@ -56,7 +56,7 @@ struct ClipCardView: View {
         .overlay(alignment: .topLeading) {
             if selected {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.45), lineWidth: 1.2)
+                    .strokeBorder(Color.primary.opacity(0.45), lineWidth: 1.2)
             }
         }
         .onHover { hovering in
@@ -96,7 +96,7 @@ struct ClipCardView: View {
         } else {
             Text(item.previewText)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
                 .lineLimit(7)
                 .multilineTextAlignment(.leading)
         }
@@ -143,7 +143,7 @@ struct ClipCardView: View {
                 .frame(width: 36, height: 36)
             Text(item.previewText)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
                 .lineLimit(3)
         }
     }
@@ -152,10 +152,10 @@ struct ClipCardView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(URL(string: item.plainText ?? "")?.host ?? "Link")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
             Text(item.plainText ?? "")
                 .font(.system(size: 11))
-                .foregroundStyle(.white.opacity(0.65))
+                .foregroundStyle(.secondary)
                 .lineLimit(4)
         }
     }

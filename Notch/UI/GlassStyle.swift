@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// Always-black hardware fill. Overlay UI stays dark via `preferredColorScheme`.
 struct GlassPanelBackground: View {
     var earRadius: CGFloat
     var bottomRadius: CGFloat
@@ -19,10 +20,10 @@ struct GlassCardBackground: View {
         shape
             .fill(Color.black)
             .overlay {
-                shape.fill(Color.white.opacity(selected ? 0.10 : 0.06))
+                shape.fill(Color.primary.opacity(selected ? 0.10 : 0.06))
             }
             .overlay {
-                shape.strokeBorder(Color.white.opacity(selected ? 0.38 : 0.12), lineWidth: 1)
+                shape.strokeBorder(Color.primary.opacity(selected ? 0.38 : 0.12), lineWidth: 1)
             }
     }
 }

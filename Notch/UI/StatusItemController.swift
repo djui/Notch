@@ -18,8 +18,9 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             if item == nil {
                 let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
                 if let button = item.button {
-                    button.image = NSImage(systemSymbolName: "circle.fill", accessibilityDescription: "Notch")
-                    button.image?.isTemplate = true
+                    button.image = MenuBarIcon.image()
+                    button.imagePosition = .imageOnly
+                    button.toolTip = "Notch"
                 }
                 let menu = NSMenu()
                 menu.delegate = self

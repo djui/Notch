@@ -40,24 +40,24 @@ struct ClipboardTrayView: View {
         HStack(spacing: 10) {
             Image(systemName: "clipboard")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.7))
+                .foregroundStyle(.primary.opacity(0.7))
 
             TextField("Search", text: Bindable(store).searchQuery)
                 .textFieldStyle(.plain)
                 .focused($searchFocused)
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Text(settings.isPaused ? "Paused" : "\(store.filteredItems.count)")
                 .font(.system(size: 11, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.45))
+                .foregroundStyle(.secondary)
 
             Button {
                 settings.isPaused.toggle()
             } label: {
                 Image(systemName: settings.isPaused ? "pause.circle.fill" : "pause.circle")
-                    .foregroundStyle(.white.opacity(0.7))
+                    .foregroundStyle(.primary.opacity(0.7))
             }
             .buttonStyle(.plain)
             .help(settings.isPaused ? "Resume capture" : "Pause capture")
@@ -66,7 +66,7 @@ struct ClipboardTrayView: View {
                 host.openSettings()
             } label: {
                 Image(systemName: "gearshape")
-                    .foregroundStyle(.white.opacity(0.7))
+                    .foregroundStyle(.primary.opacity(0.7))
                     .padding(6)
                     .contentShape(Rectangle())
             }
@@ -80,10 +80,10 @@ struct ClipboardTrayView: View {
         VStack(spacing: 6) {
             Image(systemName: store.searchQuery.isEmpty ? "doc.on.clipboard" : "magnifyingglass")
                 .font(.system(size: 22, weight: .medium))
-                .foregroundStyle(.white.opacity(0.45))
+                .foregroundStyle(.secondary)
             Text(store.searchQuery.isEmpty ? "Copy something to get started" : "No matches")
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.white.opacity(0.6))
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

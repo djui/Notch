@@ -46,6 +46,8 @@ struct NotchView: View {
         .animation(Self.expandAnimation, value: host.visualSize)
         .animation(.easeOut(duration: 0.18), value: host.isExpanded)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .preferredColorScheme(.dark)
+        .tint(.white)
     }
 
     private static let expandAnimation = Animation.timingCurve(0.16, 1, 0.3, 1, duration: 0.36)

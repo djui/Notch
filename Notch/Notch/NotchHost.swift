@@ -56,6 +56,7 @@ final class NotchHost {
         let hosting = SilentHostingView(rootView: root)
         hosting.frame = NSRect(origin: .zero, size: geometry.collapsedWindowFrame.size)
         hosting.autoresizingMask = [.width, .height]
+        hosting.appearance = NSAppearance(named: .darkAqua)
         hosting.shouldAcceptHit = { [weak hosting, weak self] point in
             guard let hosting, let self else { return false }
             let size = self.visualSize

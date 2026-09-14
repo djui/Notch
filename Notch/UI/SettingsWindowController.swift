@@ -19,6 +19,7 @@ final class SettingsWindowController {
             window.setContentSize(NSSize(width: 520, height: 560))
             window.isReleasedWhenClosed = false
             window.level = .floating
+            window.appearance = nil
             window.center()
             self.window = window
         }
