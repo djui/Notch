@@ -381,7 +381,8 @@ final class FocusMonitor {
             ?? displayString(mode["localizedName"])
             ?? displayString(mode["displayName"])
             ?? fallback.name
-        let rawSymbol = displayString(mode["symbolImageName"])
+        let rawSymbol = displayString(mode["symbolDescriptorImageName"])
+            ?? displayString(mode["symbolImageName"])
             ?? displayString(mode["sfSymbolName"])
             ?? fallback.symbol
         let symbol = availableSymbol(rawSymbol) ?? availableSymbol(fallback.symbol) ?? "moon.fill"
@@ -440,7 +441,16 @@ final class FocusMonitor {
     }
 
     private static func availableSymbol(_ name: String) -> String? {
-        NSImage(systemSymbolName: name, accessibilityDescription: nil) != nil ? name : nil
+        let canonical = canonicalSymbolName(name)
+        return NSImage.focusSymbol(named: canonical) != nil ? canonical : nil
+    }
+
+    /// Apple stores the Intelligence glyph as `_gm`; SF Symbols aliases that to `apple.intelligence`.
+    private static func canonicalSymbolName(_ name: String) -> String {
+        switch name {
+        case "_gm": "apple.intelligence"
+        default: name
+        }
     }
 
     private static let knownModes: [String: ModeInfo] = [
@@ -481,22 +491,30 @@ final class FocusMonitor {
         ),
         "com.apple.focus.reduce-interruptions": ModeInfo(
             name: "Reduce Interruptions",
-            symbol: "moon.fill",
+            symbol: "apple.intelligence",
             tintColorName: "systemPurpleColor",
             secondaryTintColorName: "systemTealColor"
         ),
     ]
 
     private static func fallbackInfo(for modeID: String) -> ModeInfo {
-        var info = knownModes[modeID] ?? ModeInfo(
+        knownModes[modeID] ?? ModeInfo(
             name: "Focus",
             symbol: "moon.fill",
             tintColorName: "systemIndigoColor"
         )
-        info.symbol = availableSymbol(info.symbol)
-            ?? (modeID.contains("mindfulness") ? availableSymbol("brain.head.profile") : nil)
-            ?? "moon.fill"
-        return info
+    }
+}
+
+extension NSImage {
+    /// Public SF Symbols first, then private Focus glyphs such as `person.lanyardcard.fill`.
+    static func focusSymbol(named name: String) -> NSImage? {
+        if let image = NSImage(systemSymbolName: name, accessibilityDescription: nil) {
+            return image
+        }
+        let selector = NSSelectorFromString("imageWithPrivateSystemSymbolName:")
+        guard NSImage.responds(to: selector) else { return nil }
+        return NSImage.perform(selector, with: name)?.takeUnretainedValue() as? NSImage
     }
 }
 

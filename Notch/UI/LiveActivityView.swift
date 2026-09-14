@@ -34,17 +34,35 @@ struct LiveActivityView: View {
     @ViewBuilder
     private func focusSymbol(_ focus: FocusLiveActivity) -> some View {
         let primary = Color.focusTint(focus.tintColorName)
-        if let secondaryName = focus.secondaryTintColorName {
-            Image(systemName: focus.symbol)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(primary, Color.focusTint(secondaryName))
-                .symbolRenderingMode(.palette)
-        } else {
-            Image(systemName: focus.symbol)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(primary)
-                .symbolRenderingMode(.hierarchical)
+        let secondary = focus.secondaryTintColorName.map(Color.focusTint)
+        if NSImage(systemSymbolName: focus.symbol, accessibilityDescription: nil) != nil {
+            if let secondary {
+                Image(systemName: focus.symbol)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(primary, secondary)
+                    .symbolRenderingMode(.palette)
+            } else {
+                Image(systemName: focus.symbol)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(primary)
+                    .symbolRenderingMode(.hierarchical)
+            }
+        } else if let image = NSImage.focusSymbol(named: focus.symbol) {
+            Image(nsImage: configuredFocusSymbol(image, primary: primary, secondary: secondary))
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 15, height: 15)
         }
+    }
+
+    private func configuredFocusSymbol(_ image: NSImage, primary: Color, secondary: Color?) -> NSImage {
+        var config = NSImage.SymbolConfiguration(pointSize: 13, weight: .semibold)
+        if let secondary {
+            config = config.applying(.init(paletteColors: [NSColor(primary), NSColor(secondary)]))
+        } else {
+            config = config.applying(.init(hierarchicalColor: NSColor(primary)))
+        }
+        return image.withSymbolConfiguration(config) ?? image
     }
 
     @ViewBuilder

@@ -20,6 +20,9 @@ struct NotchGeometry: Equatable {
     static let expandedIslandCornerRadius: CGFloat = 32
     static let collapsedNotchCornerRadius: CGFloat = 11
     static let expandedNotchCornerRadius: CGFloat = 26
+    static let clipboardExpandedHeight: CGFloat = 300
+    static let compactExpandedWidth: CGFloat = 392
+    static let compactExpandedHeight: CGFloat = 88
 
     var collapsedSize: CGSize { collapsedFrame.size }
 
@@ -104,8 +107,16 @@ struct NotchGeometry: Equatable {
         ).insetBy(dx: -4, dy: -4)
     }
 
-    static func current(style: NotchLayoutStyle, mouseScreenForHotkey: Bool = false) -> NotchGeometry {
-        make(for: preferredScreen(preferMouse: mouseScreenForHotkey), style: style)
+    static func current(
+        style: NotchLayoutStyle,
+        mouseScreenForHotkey: Bool = false,
+        clipboardEnabled: Bool = true
+    ) -> NotchGeometry {
+        make(
+            for: preferredScreen(preferMouse: mouseScreenForHotkey),
+            style: style,
+            clipboardEnabled: clipboardEnabled
+        )
     }
 
     static func preferredScreen(preferMouse: Bool) -> NSScreen {
@@ -123,40 +134,58 @@ struct NotchGeometry: Equatable {
         return NSScreen.main ?? NSScreen.screens[0]
     }
 
-    static func make(for screen: NSScreen, style: NotchLayoutStyle) -> NotchGeometry {
-        let expandedWidth = min(760, max(520, screen.frame.width * 0.62))
-        let expandedHeight: CGFloat = 300
-        let expandedSize = CGSize(width: expandedWidth, height: expandedHeight)
-
+    static func make(
+        for screen: NSScreen,
+        style: NotchLayoutStyle,
+        clipboardEnabled: Bool = true
+    ) -> NotchGeometry {
+        let collapsed: CGRect
+        let isArtificial: Bool
+        let earRadius: CGFloat
         if let real = hardwareNotchFrame(on: screen) {
-            let collapsed = style == .island
+            collapsed = style == .island
                 ? islandFrame(covering: real, on: screen)
                 : notchFrame(covering: real, on: screen)
-            return NotchGeometry(
-                displayID: screen.displayID,
-                screenFrame: screen.frame,
-                isArtificial: false,
-                layoutStyle: style,
-                collapsedFrame: collapsed,
-                expandedSize: expandedSize,
-                earRadius: 7
-            )
-        }
-
-        let collapsed: CGRect
-        if style == .island {
+            isArtificial = false
+            earRadius = 7
+        } else if style == .island {
             collapsed = islandFrameArtificial(on: screen)
+            isArtificial = true
+            earRadius = 6
         } else {
             collapsed = notchFrameArtificial(on: screen)
+            isArtificial = true
+            earRadius = 6
         }
         return NotchGeometry(
             displayID: screen.displayID,
             screenFrame: screen.frame,
-            isArtificial: true,
+            isArtificial: isArtificial,
             layoutStyle: style,
             collapsedFrame: collapsed,
-            expandedSize: expandedSize,
-            earRadius: 6
+            expandedSize: expandedSize(
+                for: screen,
+                clipboardEnabled: clipboardEnabled,
+                collapsedWidth: collapsed.width
+            ),
+            earRadius: earRadius
+        )
+    }
+
+    private static func expandedSize(
+        for screen: NSScreen,
+        clipboardEnabled: Bool,
+        collapsedWidth: CGFloat
+    ) -> CGSize {
+        if clipboardEnabled {
+            return CGSize(
+                width: min(760, max(520, screen.frame.width * 0.62)),
+                height: clipboardExpandedHeight
+            )
+        }
+        return CGSize(
+            width: min(screen.frame.width * 0.55, max(collapsedWidth + 16, compactExpandedWidth)),
+            height: compactExpandedHeight
         )
     }
 

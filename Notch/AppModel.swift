@@ -51,6 +51,7 @@ final class AppModel {
         }
         registerHotkeys()
         statusItem.refreshMenu()
+        host.applyClipboardEnabled()
     }
 
     func registerHotkeys() {

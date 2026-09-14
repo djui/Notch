@@ -194,8 +194,19 @@ final class NotchHost {
         updateHoverFromMouseLocation()
     }
 
+    func applyClipboardEnabled() {
+        geometry = currentGeometry()
+        if isExpanded {
+            setWindowToCurrentState()
+        }
+    }
+
     private func currentGeometry(mouseScreenForHotkey: Bool = false) -> NotchGeometry {
-        .current(style: AppModel.shared.settings.layoutStyle, mouseScreenForHotkey: mouseScreenForHotkey)
+        .current(
+            style: AppModel.shared.settings.layoutStyle,
+            mouseScreenForHotkey: mouseScreenForHotkey,
+            clipboardEnabled: AppModel.shared.settings.clipboardEnabled
+        )
     }
 
     func mouseEntered() {

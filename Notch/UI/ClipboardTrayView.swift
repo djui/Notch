@@ -7,8 +7,9 @@ struct ClipboardTrayView: View {
     @FocusState private var searchFocused: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: settings.clipboardEnabled ? 10 : 0) {
             NowPlayingBarView()
+                .frame(maxWidth: .infinity, maxHeight: settings.clipboardEnabled ? nil : .infinity)
             if settings.clipboardEnabled {
                 header
                 if store.filteredItems.isEmpty {
@@ -18,9 +19,9 @@ struct ClipboardTrayView: View {
                 }
             }
         }
-        .padding(.horizontal, 28)
-        .padding(.bottom, 22)
-        .padding(.top, 4)
+        .padding(.horizontal, settings.clipboardEnabled ? 28 : 16)
+        .padding(.bottom, settings.clipboardEnabled ? 22 : 10)
+        .padding(.top, settings.clipboardEnabled ? 4 : 2)
         .onChange(of: host.searchFocusGeneration) { _, _ in
             searchFocused = true
         }
