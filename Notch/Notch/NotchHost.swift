@@ -203,6 +203,7 @@ final class NotchHost {
     }
 
     func openSettings() {
+        collapse(restoreApp: false)
         SettingsWindowController.shared.show()
     }
 
