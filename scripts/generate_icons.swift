@@ -7,40 +7,24 @@ import AppKit
 struct Palette {
     var backgroundTop: NSColor
     var backgroundBottom: NSColor
-    var cardFill: NSColor
-    var cardFillFront: NSColor
-    var cardStroke: NSColor
-    var line: NSColor
     var notch: NSColor
 }
 
 let light = Palette(
     backgroundTop: NSColor(srgbRed: 0.97, green: 0.97, blue: 0.985, alpha: 1),
     backgroundBottom: NSColor(srgbRed: 0.82, green: 0.82, blue: 0.86, alpha: 1),
-    cardFill: NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.72),
-    cardFillFront: NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.94),
-    cardStroke: NSColor(srgbRed: 0, green: 0, blue: 0, alpha: 0.10),
-    line: NSColor(srgbRed: 0.45, green: 0.45, blue: 0.50, alpha: 0.55),
     notch: .black
 )
 
 let dark = Palette(
     backgroundTop: NSColor(srgbRed: 0.32, green: 0.32, blue: 0.34, alpha: 1),
     backgroundBottom: NSColor(srgbRed: 0.14, green: 0.14, blue: 0.15, alpha: 1),
-    cardFill: NSColor(srgbRed: 0.22, green: 0.22, blue: 0.24, alpha: 0.86),
-    cardFillFront: NSColor(srgbRed: 0.24, green: 0.24, blue: 0.26, alpha: 0.96),
-    cardStroke: NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.18),
-    line: NSColor(srgbRed: 0.86, green: 0.86, blue: 0.88, alpha: 0.42),
     notch: .black
 )
 
 let tinted = Palette(
     backgroundTop: NSColor(srgbRed: 0.78, green: 0.78, blue: 0.80, alpha: 1),
     backgroundBottom: NSColor(srgbRed: 0.62, green: 0.62, blue: 0.65, alpha: 1),
-    cardFill: NSColor(srgbRed: 0.48, green: 0.48, blue: 0.50, alpha: 1),
-    cardFillFront: NSColor(srgbRed: 0.36, green: 0.36, blue: 0.38, alpha: 1),
-    cardStroke: NSColor(srgbRed: 0.18, green: 0.18, blue: 0.20, alpha: 0.55),
-    line: NSColor(srgbRed: 0.90, green: 0.90, blue: 0.92, alpha: 0.55),
     notch: .black
 )
 
@@ -82,89 +66,26 @@ func drawIcon(size: CGFloat, palette: Palette) {
     ctx.drawLinearGradient(gradient, start: .zero, end: CGPoint(x: 0, y: size), options: [])
 
     let compact = size <= 32
-    let notchWidth = size * (compact ? 0.70 : 0.52)
-    let notchHeight = size * (compact ? 0.34 : 0.138)
+    let notchWidth = size * (compact ? 0.72 : 0.62)
+    let notchHeight = size * (compact ? 0.36 : 0.22)
     let notchRect = CGRect(
         x: (size - notchWidth) / 2,
         y: 0,
         width: notchWidth,
         height: notchHeight
     )
-
+    let path = notchCGPath(in: notchRect, earRadius: notchHeight * 0.26, bottomRadius: notchHeight * 0.28)
     if !compact {
-        drawCards(ctx: ctx, canvasSize: size, palette: palette)
+        ctx.setShadow(
+            offset: CGSize(width: 0, height: size * 0.012),
+            blur: size * 0.028,
+            color: NSColor.black.withAlphaComponent(0.22).cgColor
+        )
     }
-
     ctx.setFillColor(palette.notch.cgColor)
-    ctx.addPath(notchCGPath(in: notchRect, earRadius: notchHeight * 0.26, bottomRadius: notchHeight * 0.28))
+    ctx.addPath(path)
     ctx.fillPath()
     ctx.restoreGState()
-}
-
-func drawCards(ctx: CGContext, canvasSize size: CGFloat, palette: Palette) {
-    let cardWidth = size * 0.42
-    let cardHeight = size * 0.40
-    let front = CGRect(
-        x: (size - cardWidth) / 2,
-        y: size * 0.11,
-        width: cardWidth,
-        height: cardHeight
-    )
-    let radius = size * 0.055
-    let backCards: [(CGFloat, CGFloat, CGFloat)] = [
-        (-size * 0.085, size * 0.02, -9),
-        (size * 0.08, size * 0.01, 7)
-    ]
-
-    for (dx, dy, degrees) in backCards {
-        ctx.saveGState()
-        ctx.translateBy(x: front.midX + dx, y: front.midY + dy)
-        ctx.rotate(by: degrees * .pi / 180)
-        let rect = CGRect(x: -front.width / 2, y: -front.height / 2, width: front.width, height: front.height)
-        let path = CGPath(roundedRect: rect, cornerWidth: radius, cornerHeight: radius, transform: nil)
-        ctx.addPath(path)
-        ctx.setFillColor(palette.cardFill.cgColor)
-        ctx.fillPath()
-        ctx.addPath(path)
-        ctx.setStrokeColor(palette.cardStroke.cgColor)
-        ctx.setLineWidth(max(1, size * 0.006))
-        ctx.strokePath()
-        ctx.restoreGState()
-    }
-
-    ctx.saveGState()
-    ctx.setShadow(
-        offset: CGSize(width: 0, height: size * 0.012),
-        blur: size * 0.035,
-        color: NSColor.black.withAlphaComponent(0.25).cgColor
-    )
-    let frontPath = CGPath(roundedRect: front, cornerWidth: radius, cornerHeight: radius, transform: nil)
-    ctx.addPath(frontPath)
-    ctx.setFillColor(palette.cardFillFront.cgColor)
-    ctx.fillPath()
-    ctx.restoreGState()
-
-    ctx.addPath(frontPath)
-    ctx.setStrokeColor(palette.cardStroke.cgColor)
-    ctx.setLineWidth(max(1, size * 0.007))
-    ctx.strokePath()
-
-    let inset = size * 0.045
-    var line = CGRect(
-        x: front.minX + inset,
-        y: front.minY + inset * 1.6,
-        width: front.width - inset * 2,
-        height: size * 0.028
-    )
-    for index in 0..<4 {
-        let widthScale: CGFloat = [1, 0.86, 0.72, 0.54][index]
-        var r = line
-        r.size.width *= widthScale
-        ctx.addPath(CGPath(roundedRect: r, cornerWidth: r.height / 2, cornerHeight: r.height / 2, transform: nil))
-        ctx.setFillColor(palette.line.cgColor)
-        ctx.fillPath()
-        line.origin.y += size * 0.058
-    }
 }
 
 func writePNG(size: Int, palette: Palette, url: URL) throws {
