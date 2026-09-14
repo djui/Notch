@@ -73,6 +73,9 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         hide.target = self
 
         menu.addItem(.separator())
+        let about = menu.addItem(withTitle: "About Notch", action: #selector(openAbout), keyEquivalent: "")
+        about.target = self
+
         let relaunch = menu.addItem(withTitle: "Relaunch Notch", action: #selector(relaunch), keyEquivalent: "r")
         relaunch.target = self
 
@@ -94,6 +97,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     @objc private func openSettings() {
         host?.openSettings()
+    }
+
+    @objc private func openAbout() {
+        host?.openAbout()
     }
 
     @objc private func hideStatusItem() {

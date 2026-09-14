@@ -209,6 +209,11 @@ final class NotchHost {
         SettingsWindowController.shared.show()
     }
 
+    func openAbout() {
+        collapse(restoreApp: false)
+        AboutWindowController.shared.show()
+    }
+
     func startDragging(_ item: ClipItem) {
         guard !isDraggingClip else { return }
         guard let hostingView, let event = NSApp.currentEvent else { return }

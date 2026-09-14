@@ -60,9 +60,16 @@ struct SettingsView: View {
                     }
                 }
             }
+
+            Section("About") {
+                LabeledContent("Version", value: AppInfo.versionLabel)
+                Button("About Notch…") {
+                    AboutWindowController.shared.show()
+                }
+            }
         }
         .formStyle(.grouped)
-        .frame(width: 520, height: 540)
+        .frame(width: 520, height: 620)
         .navigationTitle("Notch Settings")
     }
 

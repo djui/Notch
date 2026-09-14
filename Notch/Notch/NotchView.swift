@@ -44,6 +44,7 @@ struct NotchView: View {
                 settings.showStatusItem.toggle()
             }
             Divider()
+            Button("About Notch") { host.openAbout() }
             Button("Relaunch Notch") { NSApp.relaunch() }
             Button("Quit Notch") { NSApp.terminate(nil) }
         }

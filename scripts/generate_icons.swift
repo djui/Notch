@@ -1,7 +1,7 @@
 #!/usr/bin/env swift
 import AppKit
 
-// Generates light, dark, and tinted Mac app icons plus a template menu-bar PDF.
+// Generates Mac app icons plus a template menu-bar PDF.
 // Run from the repo root: swift scripts/generate_icons.swift
 
 struct Palette {
@@ -13,18 +13,6 @@ struct Palette {
 let light = Palette(
     backgroundTop: NSColor(srgbRed: 0.97, green: 0.97, blue: 0.985, alpha: 1),
     backgroundBottom: NSColor(srgbRed: 0.82, green: 0.82, blue: 0.86, alpha: 1),
-    notch: .black
-)
-
-let dark = Palette(
-    backgroundTop: NSColor(srgbRed: 0.32, green: 0.32, blue: 0.34, alpha: 1),
-    backgroundBottom: NSColor(srgbRed: 0.14, green: 0.14, blue: 0.15, alpha: 1),
-    notch: .black
-)
-
-let tinted = Palette(
-    backgroundTop: NSColor(srgbRed: 0.78, green: 0.78, blue: 0.80, alpha: 1),
-    backgroundBottom: NSColor(srgbRed: 0.62, green: 0.62, blue: 0.65, alpha: 1),
     notch: .black
 )
 
@@ -135,21 +123,13 @@ func writeMenuBarPDF(url: URL) {
     ctx.closePDF()
 }
 
-func appearance(_ value: String) -> [[String: String]] {
-    [["appearance": "luminosity", "value": value]]
-}
-
-func imageEntry(filename: String, size: String, scale: String, appearances: [[String: String]]? = nil) -> [String: Any] {
-    var entry: [String: Any] = [
+func imageEntry(filename: String, size: String, scale: String) -> [String: Any] {
+    [
         "filename": filename,
         "idiom": "mac",
         "scale": scale,
         "size": size
     ]
-    if let appearances {
-        entry["appearances"] = appearances
-    }
-    return entry
 }
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
@@ -180,17 +160,13 @@ let slots: [IconSlot] = [
 var catalog: [[String: Any]] = []
 for slot in slots {
     let pixels = slot.point * slot.scale
-    let lightName = "\(slot.name).png"
-    let darkName = "\(slot.name)-dark.png"
-    let tintedName = "\(slot.name)-tinted.png"
-    try writePNG(size: pixels, palette: light, url: appIconDir.appendingPathComponent(lightName))
-    try writePNG(size: pixels, palette: dark, url: appIconDir.appendingPathComponent(darkName))
-    try writePNG(size: pixels, palette: tinted, url: appIconDir.appendingPathComponent(tintedName))
-    let sizeKey = "\(slot.point)x\(slot.point)"
-    let scaleKey = "\(slot.scale)x"
-    catalog.append(imageEntry(filename: lightName, size: sizeKey, scale: scaleKey))
-    catalog.append(imageEntry(filename: darkName, size: sizeKey, scale: scaleKey, appearances: appearance("dark")))
-    catalog.append(imageEntry(filename: tintedName, size: sizeKey, scale: scaleKey, appearances: appearance("tinted")))
+    let filename = "\(slot.name).png"
+    try writePNG(size: pixels, palette: light, url: appIconDir.appendingPathComponent(filename))
+    catalog.append(imageEntry(
+        filename: filename,
+        size: "\(slot.point)x\(slot.point)",
+        scale: "\(slot.scale)x"
+    ))
 }
 
 let appIconJSON: [String: Any] = [

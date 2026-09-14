@@ -17,7 +17,7 @@ final class SettingsWindowController {
             let window = NSWindow(contentViewController: hosting)
             window.title = "Notch Settings"
             window.styleMask = [.titled, .closable]
-            window.setContentSize(NSSize(width: 520, height: 560))
+            window.setContentSize(NSSize(width: 520, height: 640))
             window.isReleasedWhenClosed = false
             window.level = .floating
             window.appearance = nil
