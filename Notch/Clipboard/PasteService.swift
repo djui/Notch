@@ -17,16 +17,18 @@ enum PasteService {
         AppModel.shared.monitor.ignoreNextChange = true
         item.write(to: .general, plainText: plainText)
 
-        let paste: () -> Void = {
-            guard isTrusted else { return }
-            postCommandV()
-        }
-
+        let delay: Duration
         if let app, app.bundleIdentifier != Bundle.main.bundleIdentifier {
             app.activate()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.08, execute: paste)
+            delay = .milliseconds(80)
         } else {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05, execute: paste)
+            delay = .milliseconds(50)
+        }
+
+        Task { @MainActor in
+            try? await Task.sleep(for: delay)
+            guard isTrusted else { return }
+            postCommandV()
         }
     }
 

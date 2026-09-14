@@ -19,7 +19,7 @@ final class GlobalHotkey {
         Self.installSharedHandlerIfNeeded()
         Self.instances[identifier] = self
 
-        var hotKeyID = EventHotKeyID(signature: 0x4E544348, id: identifier)
+        let hotKeyID = EventHotKeyID(signature: 0x4E544348, id: identifier)
         RegisterEventHotKey(
             keyCode,
             modifiers,
