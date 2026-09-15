@@ -35,9 +35,10 @@ final class NotchHost {
     private var globalHoverMonitor: Any?
     private var localHoverMonitor: Any?
     private var isMouseInHoverTarget = false
-    private var collapseWindowWorkItem: DispatchWorkItem?
     private var draggingSource: ClipDraggingSource?
     private var visibility: NotchVisibility?
+    private let morphAnimator = NotchMorphAnimator()
+    private var workspaceObservers: [NSObjectProtocol] = []
 
     init() {
         let geometry = NotchGeometry.current(style: .notch)
@@ -101,6 +102,16 @@ final class NotchHost {
             }
         }
 
+        let workspace = NSWorkspace.shared.notificationCenter
+        for name in [NSWorkspace.didWakeNotification, NSWorkspace.screensDidWakeNotification] {
+            let observer = workspace.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in
+                    self?.handleDisplayWake()
+                }
+            }
+            workspaceObservers.append(observer)
+        }
+
         localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             self?.handleKey(event) ?? event
         }
@@ -126,6 +137,12 @@ final class NotchHost {
     }
 
     func stop() {
+        morphAnimator.stop()
+        let workspace = NSWorkspace.shared.notificationCenter
+        for observer in workspaceObservers {
+            workspace.removeObserver(observer)
+        }
+        workspaceObservers.removeAll()
         if let screenObserver {
             NotificationCenter.default.removeObserver(screenObserver)
         }
@@ -146,7 +163,7 @@ final class NotchHost {
             NSEvent.removeMonitor(localHoverMonitor)
             self.localHoverMonitor = nil
         }
-        collapseWindowWorkItem?.cancel()
+        collapseWorkItem?.cancel()
         visibility?.stop()
         visibility = nil
         panel?.close()
@@ -157,7 +174,9 @@ final class NotchHost {
     func requestSearchFocus() {
         if !isExpanded {
             expand(pinned: true)
-        } else if !isPinned {
+            return
+        }
+        if !isPinned {
             isPinned = true
         }
         focusSearchField()
@@ -173,7 +192,7 @@ final class NotchHost {
     }
 
     func applyLayoutStyle() {
-        collapseWindowWorkItem?.cancel()
+        morphAnimator.stop()
         isHoverPeeking = false
         var transaction = Transaction()
         transaction.disablesAnimations = true
@@ -287,12 +306,10 @@ final class NotchHost {
         panel?.setFrameImmediately(geometry.expandedPanelFrame)
         panelFrameIsExpanded = true
         isExpanded = true
-        DispatchQueue.main.async { [weak self] in
-            guard let self, self.isExpanded else { return }
-            self.visualSize = self.geometry.expandedSize
-        }
-        if AppModel.shared.settings.clipboardEnabled {
-            focusSearchField()
+        let shouldFocusSearch = AppModel.shared.settings.clipboardEnabled
+        animateVisualSize(to: geometry.expandedSize, curve: .expand) { [weak self] in
+            guard let self, self.isExpanded, shouldFocusSearch else { return }
+            self.focusSearchField()
         }
     }
 
@@ -305,15 +322,17 @@ final class NotchHost {
     func collapse(restoreApp: Bool = true) {
         isDraggingClip = false
         draggingSource = nil
-        cancelCollapse()
+        collapseWorkItem?.cancel()
+        collapseWorkItem = nil
         isPinned = false
         isExpanded = false
         isHoverPeeking = false
         panel?.hasShadow = false
         panel?.setAcceptsKeyboard(false)
         AppModel.shared.store.searchQuery = ""
-        visualSize = geometry.collapsedSize
-        scheduleWindowShrink()
+        animateVisualSize(to: geometry.collapsedSize, curve: .easeOut) { [weak self] in
+            self?.finishWindowShrink()
+        }
         if restoreApp, !AccessoryWindowPolicy.hasVisibleWindows {
             previousApp?.activate()
         }
@@ -407,44 +426,77 @@ final class NotchHost {
         guard !AppModel.shared.settings.openOnHover else { return }
         guard isHoverPeeking != on else { return }
         isHoverPeeking = on
-        visualSize = geometry.collapsedSize(peeking: on)
+        animateVisualSize(to: geometry.collapsedSize(peeking: on), curve: .easeOut)
     }
 
     private func setWindowToCurrentState() {
+        morphAnimator.stop()
         if isExpanded {
             panel?.setFrameImmediately(geometry.expandedPanelFrame)
             panelFrameIsExpanded = true
-            visualSize = geometry.expandedSize
+            applyVisualSize(geometry.expandedSize)
         } else {
             panel?.setFrameImmediately(collapsedPanelFrame)
             panelFrameIsExpanded = false
-            visualSize = geometry.collapsedSize(peeking: isHoverPeeking)
+            applyVisualSize(geometry.collapsedSize(peeking: isHoverPeeking))
         }
     }
 
-    private func scheduleWindowShrink() {
-        collapseWindowWorkItem?.cancel()
-        let work = DispatchWorkItem { [weak self] in
-            guard let self, !self.isExpanded else { return }
-            self.panelFrameIsExpanded = false
-            if !AppModel.shared.settings.openOnHover,
-               let panel = self.panel,
-               panel.frame.insetBy(dx: -12, dy: -12).contains(NSEvent.mouseLocation) {
-                self.applyHoverPeek(true)
-            } else {
-                self.visualSize = self.geometry.collapsedSize
-                self.panel?.setFrameImmediately(self.collapsedPanelFrame)
-            }
-            self.panel?.setAcceptsKeyboard(false)
-            AccessoryWindowPolicy.restoreKeyWindow()
+    private func finishWindowShrink() {
+        guard !isExpanded else { return }
+        panelFrameIsExpanded = false
+        if !AppModel.shared.settings.openOnHover,
+           let panel = self.panel,
+           panel.frame.insetBy(dx: -12, dy: -12).contains(NSEvent.mouseLocation) {
+            applyHoverPeek(true)
+        } else {
+            applyVisualSize(geometry.collapsedSize)
+            panel?.setFrameImmediately(collapsedPanelFrame)
         }
-        collapseWindowWorkItem = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.38, execute: work)
+        panel?.setAcceptsKeyboard(false)
+        AccessoryWindowPolicy.restoreKeyWindow()
     }
 
     private func reposition(animated: Bool) {
+        morphAnimator.stop()
         geometry = currentGeometry()
         setWindowToCurrentState()
+    }
+
+    private func handleDisplayWake() {
+        morphAnimator.stop()
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            layoutGeneration += 1
+            geometry = currentGeometry()
+            setWindowToCurrentState()
+        }
+    }
+
+    private func applyVisualSize(_ size: CGSize) {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            visualSize = size
+        }
+    }
+
+    private func animateVisualSize(
+        to size: CGSize,
+        curve: NotchMorphAnimator.Curve,
+        onComplete: (() -> Void)? = nil
+    ) {
+        morphAnimator.animate(
+            from: visualSize,
+            to: size,
+            curve: curve,
+            window: panel,
+            onTick: { [weak self] next in
+                self?.applyVisualSize(next)
+            },
+            onComplete: onComplete
+        )
     }
 
     private func scheduleCollapse() {
@@ -459,8 +511,6 @@ final class NotchHost {
     private func cancelCollapse() {
         collapseWorkItem?.cancel()
         collapseWorkItem = nil
-        collapseWindowWorkItem?.cancel()
-        collapseWindowWorkItem = nil
     }
 
     private func clickedOutside() {

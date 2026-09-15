@@ -26,9 +26,28 @@ struct NotchGeometry: Equatable {
 
     var collapsedSize: CGSize { collapsedFrame.size }
 
-    func notchCornerRadii(expanded: Bool) -> (ear: CGFloat, bottom: CGFloat) {
-        let radius = expanded ? Self.expandedNotchCornerRadius : Self.collapsedNotchCornerRadius
-        return (radius, radius)
+    /// 0 at collapsed height, 1 at expanded height. Peek sits near 0.
+    func morphProgress(visualSize: CGSize) -> CGFloat {
+        let start = collapsedSize.height
+        let end = expandedSize.height
+        let span = end - start
+        guard span > 0.5 else { return visualSize.height >= end - 0.5 ? 1 : 0 }
+        return min(1, max(0, (visualSize.height - start) / span))
+    }
+
+    /// Corner radii follow morph progress so fill and clip share one clock.
+    func cornerRadii(progress: CGFloat) -> (ear: CGFloat, bottom: CGFloat) {
+        let t = min(1, max(0, progress))
+        switch layoutStyle {
+        case .notch:
+            let radius = Self.collapsedNotchCornerRadius
+                + (Self.expandedNotchCornerRadius - Self.collapsedNotchCornerRadius) * t
+            return (radius, radius)
+        case .island:
+            let collapsed = collapsedSize.height / 2
+            let radius = collapsed + (expandedCornerRadius - collapsed) * t
+            return (radius, radius)
+        }
     }
 
     func collapsedSize(peeking: Bool) -> CGSize {

@@ -4,39 +4,27 @@ struct NotchView: View {
     @Environment(NotchHost.self) private var host
     @Environment(LiveActivityCenter.self) private var liveActivity
 
-    private var earRadius: CGFloat {
-        switch host.geometry.layoutStyle {
-        case .notch:
-            return host.geometry.notchCornerRadii(expanded: host.isExpanded).ear
-        case .island:
-            return host.isExpanded ? host.geometry.expandedCornerRadius : host.visualSize.height / 2
-        }
-    }
-
-    private var bottomRadius: CGFloat {
-        switch host.geometry.layoutStyle {
-        case .notch:
-            return host.geometry.notchCornerRadii(expanded: host.isExpanded).bottom
-        case .island:
-            return earRadius
-        }
+    private var morphProgress: CGFloat {
+        host.geometry.morphProgress(visualSize: host.visualSize)
     }
 
     private var shape: NotchShape {
-        switch host.geometry.layoutStyle {
-        case .notch:
-            return NotchShape(style: .notch, earRadius: earRadius, bottomRadius: bottomRadius)
-        case .island:
-            let corner = host.isExpanded ? host.geometry.expandedCornerRadius : host.visualSize.height / 2
-            return NotchShape(style: .island, earRadius: corner, bottomRadius: corner)
-        }
+        let radii = host.geometry.cornerRadii(progress: morphProgress)
+        return NotchShape(
+            style: host.geometry.layoutStyle,
+            earRadius: radii.ear,
+            bottomRadius: radii.bottom
+        )
+    }
+
+    private var expandedContentOpacity: CGFloat {
+        min(1, max(0, (morphProgress - 0.2) / 0.5))
     }
 
     var body: some View {
         ZStack(alignment: .top) {
             notchBody
         }
-        .animation(.easeOut(duration: 0.18), value: host.isExpanded)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color.clear)
         .preferredColorScheme(.dark)
@@ -46,17 +34,23 @@ struct NotchView: View {
     private var notchBody: some View {
         ZStack(alignment: .top) {
             shape.fill(Color.black)
-            if host.isExpanded {
+            if morphProgress < 0.8 {
+                collapsedBody
+                    .opacity(max(0, 1 - morphProgress * 2))
+            }
+            if host.isExpanded || morphProgress > 0.05 {
                 expandedBody
                     .padding(.top, 8)
-                    .transition(.opacity)
-            } else {
-                collapsedBody
-                    .transition(.opacity)
+                    .frame(
+                        width: host.geometry.expandedSize.width,
+                        height: host.geometry.expandedSize.height,
+                        alignment: .top
+                    )
+                    .opacity(expandedContentOpacity)
+                    .allowsHitTesting(host.isExpanded && morphProgress > 0.9)
             }
         }
-        .modifier(TopAnchoredSize(size: host.visualSize))
-        .animation(host.isExpanded ? Self.expandAnimation : Self.peekAnimation, value: host.visualSize)
+        .frame(width: host.visualSize.width, height: host.visualSize.height, alignment: .top)
         .clipShape(shape)
         .contentShape(shape)
         .onHover { hovering in
@@ -71,25 +65,6 @@ struct NotchView: View {
             Divider()
             Button("Relaunch Notch") { NSApp.relaunch() }
             Button("Quit Notch") { NSApp.terminate(nil) }
-        }
-    }
-
-    private static let expandAnimation = Animation.spring(response: 0.38, dampingFraction: 0.72)
-    private static let peekAnimation = Animation.easeOut(duration: 0.16)
-
-    /// Interpolates width/height in layout so the top-center edge stays put.
-    /// Animating `.frame` directly lets SwiftUI move the view's center, which
-    /// looks like a drop then zoom.
-    private struct TopAnchoredSize: ViewModifier, Animatable {
-        var size: CGSize
-
-        var animatableData: AnimatablePair<CGFloat, CGFloat> {
-            get { AnimatablePair(size.width, size.height) }
-            set { size = CGSize(width: newValue.first, height: newValue.second) }
-        }
-
-        func body(content: Content) -> some View {
-            content.frame(width: size.width, height: size.height, alignment: .top)
         }
     }
 
