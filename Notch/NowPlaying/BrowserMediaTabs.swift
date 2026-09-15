@@ -184,10 +184,13 @@ enum BrowserMediaTabs {
         const window = windows[windowIndex];
         const tabs = window.tabs();
         const tab = tabs[tabIndex];
+        try { app.reopen(); } catch (e) {}
         try { window.currentTab = tab; } catch (e) {}
         try { window.activeTabIndex = tabIndex + 1; } catch (e) {}
         try { window.activeTab = tab; } catch (e) {}
         try { window.index = 1; } catch (e) {}
+        try { window.miniaturized = false; } catch (e) {}
+        try { window.visible = true; } catch (e) {}
         app.activate();
         payload.ok = true;
       } catch (e) {

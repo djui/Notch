@@ -45,3 +45,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Focus live activity shows the active mode’s name and symbol, including switches between modes
 - Clicking a clipboard card pastes it (⌘1 already did)
 - Expand and collapse stay anchored to the top center
+- Reopen a hidden or windowless player when clicking the Now Playing title
