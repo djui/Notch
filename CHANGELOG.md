@@ -6,9 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-09-15
+
 ### Fixed
 
 - Opening the clipboard from the hotkey highlights the first/latest clip so Return pastes the most recent copy
+
 
 ## [1.0] - 2026-09-15
 
@@ -53,5 +56,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Expand and collapse stay anchored to the top center
 - Reopen a hidden or windowless player when clicking the Now Playing title
 
-[Unreleased]: https://github.com/djui/Notch/compare/v1.0...HEAD
+[Unreleased]: https://github.com/djui/Notch/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/djui/Notch/releases/tag/v1.0.1
 [1.0]: https://github.com/djui/Notch/releases/tag/v1.0
