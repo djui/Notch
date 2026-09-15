@@ -293,13 +293,18 @@ final class NotchHost {
         if isPinned && isExpanded {
             collapse()
         } else {
+            AppModel.shared.store.selectFirst()
             expand(pinned: true)
         }
     }
 
     func expand(pinned: Bool) {
+        let opening = !isExpanded
         cancelCollapse()
         rememberFrontmostApp()
+        if opening {
+            AppModel.shared.store.selectFirst()
+        }
         isPinned = pinned
         isHoverPeeking = false
         panel?.hasShadow = false

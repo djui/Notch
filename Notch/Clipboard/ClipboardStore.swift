@@ -134,6 +134,11 @@ final class ClipboardStore {
         }
     }
 
+    func selectFirst() {
+        selectedID = filteredItems.first?.id
+        scrollGeneration += 1
+    }
+
     func selectNext() {
         let list = filteredItems
         guard let index = list.firstIndex(where: { $0.id == selectedID }) else {

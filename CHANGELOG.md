@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Opening the clipboard from the hotkey highlights the first/latest clip so Return pastes the most recent copy
+
 ## [1.0] - 2026-09-15
 
 ### Added
