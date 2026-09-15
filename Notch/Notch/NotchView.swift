@@ -32,6 +32,16 @@ struct NotchView: View {
     }
 
     private var notchBody: some View {
+        VStack(spacing: 0) {
+            Color.clear
+                .frame(height: host.geometry.topHitPadding)
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+            visualNotch
+        }
+    }
+
+    private var visualNotch: some View {
         ZStack(alignment: .top) {
             shape.fill(Color.black)
             if morphProgress < 0.8 {
@@ -52,7 +62,7 @@ struct NotchView: View {
         }
         .frame(width: host.visualSize.width, height: host.visualSize.height, alignment: .top)
         .clipShape(shape)
-        .contentShape(shape)
+        .contentShape(Rectangle())
         .onHover { hovering in
             if hovering {
                 host.mouseEntered()

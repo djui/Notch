@@ -26,6 +26,9 @@ struct NotchGeometry: Equatable {
 
     var collapsedSize: CGSize { collapsedFrame.size }
 
+    /// Gap between the visual top and the display top (island sits in the menu bar).
+    var topHitPadding: CGFloat { max(0, screenFrame.maxY - collapsedFrame.maxY) }
+
     /// 0 at collapsed height, 1 at expanded height. Peek sits near 0.
     func morphProgress(visualSize: CGSize) -> CGFloat {
         let start = collapsedSize.height
@@ -64,14 +67,12 @@ struct NotchGeometry: Equatable {
 
     var expandedWindowFrame: CGRect { windowFrame(for: expandedSize) }
 
-    var collapsedWindowFrame: CGRect { collapsedFrame }
+    var collapsedWindowFrame: CGRect { windowFrame(for: collapsedSize) }
 
     /// Room for the click-to-open hover grow without moving the window.
     /// Top edge and horizontal center stay on the collapsed notch.
     func collapsedWindowFrame(hoverPeekReserved: Bool) -> CGRect {
-        hoverPeekReserved
-            ? windowFrame(for: collapsedSize(peeking: true))
-            : collapsedFrame
+        windowFrame(for: collapsedSize(peeking: hoverPeekReserved))
     }
 
     var expandedPanelFrame: CGRect { expandedWindowFrame }
@@ -84,46 +85,61 @@ struct NotchGeometry: Equatable {
         expanded ? expandedPanelFrame : collapsedWindowFrame
     }
 
-    /// Size grows from the collapsed notch: top edge and horizontal center stay fixed.
+    /// Size grows from the collapsed notch: visual top and horizontal center stay fixed.
+    /// Window height includes `topHitPadding` so the menu-bar gap above an island is clickable.
     func windowFrame(for size: CGSize) -> CGRect {
         CGRect(
             x: collapsedFrame.midX - size.width / 2,
             y: collapsedFrame.maxY - size.height,
             width: size.width,
-            height: size.height
+            height: size.height + topHitPadding
         )
     }
 
     func visualFrame(in bounds: CGRect, size: CGSize) -> CGRect {
         CGRect(
             x: bounds.midX - size.width / 2,
-            y: bounds.maxY - size.height,
+            y: bounds.maxY - topHitPadding - size.height,
             width: size.width,
             height: size.height
         )
     }
 
-    /// Screen-space region that should count as hovering the overlay.
-    /// Island uses the full menu-bar strip so the 3pt gaps around the capsule
-    /// still open-on-hover (those pixels belong to the system menu bar).
+    /// Screen-space region that should count as hovering or clicking the overlay.
+    /// Island uses the full menu-bar strip so the gaps around the capsule still
+    /// count (those pixels belong to the system menu bar). The top edge is
+    /// included: `CGRect.contains` is maxY-exclusive, and a cursor slammed to
+    /// the top of the display sits on `screenFrame.maxY`.
     func hoverScreenFrame(visualSize: CGSize, panelFrame: CGRect, expanded: Bool) -> CGRect {
+        let raw: CGRect
         if !expanded, layoutStyle == .island {
             let pad: CGFloat = 10
             let top = screenFrame.maxY
             let bottom = collapsedFrame.minY - pad
-            return CGRect(
+            raw = CGRect(
                 x: collapsedFrame.minX - pad,
                 y: bottom,
                 width: collapsedFrame.width + pad * 2,
                 height: max(collapsedFrame.height, top - bottom)
             )
+        } else {
+            raw = CGRect(
+                x: panelFrame.midX - visualSize.width / 2,
+                y: panelFrame.maxY - topHitPadding - visualSize.height,
+                width: visualSize.width,
+                height: visualSize.height + topHitPadding
+            ).insetBy(dx: -4, dy: -4)
         }
-        return CGRect(
-            x: panelFrame.midX - visualSize.width / 2,
-            y: panelFrame.maxY - visualSize.height,
-            width: visualSize.width,
-            height: visualSize.height
-        ).insetBy(dx: -4, dy: -4)
+        let top = screenFrame.maxY + 1
+        guard raw.maxY < top else { return raw }
+        return CGRect(x: raw.minX, y: raw.minY, width: raw.width, height: top - raw.minY)
+    }
+
+    /// `CGRect.contains` excludes `maxY`, which is exactly where the cursor sits
+    /// when it is pushed against the top of the display.
+    func containsMouse(_ point: NSPoint, in rect: CGRect) -> Bool {
+        point.x >= rect.minX && point.x < rect.maxX
+            && point.y >= rect.minY && point.y <= rect.maxY
     }
 
     static func current(

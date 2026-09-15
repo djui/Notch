@@ -68,11 +68,17 @@ final class NotchHost {
         hosting.appearance = NSAppearance(named: .darkAqua)
         hosting.shouldAcceptHit = { [weak hosting, weak self] point in
             guard let hosting, let self else { return false }
-            let rect = self.geometry.visualFrame(
+            let visual = self.geometry.visualFrame(
                 in: hosting.bounds,
                 size: self.visualSize
+            )
+            let hit = CGRect(
+                x: visual.minX,
+                y: visual.minY,
+                width: visual.width,
+                height: max(visual.height, hosting.bounds.maxY - visual.minY)
             ).insetBy(dx: -2, dy: -2)
-            return rect.contains(point)
+            return hit.contains(point)
         }
         panel.embed(hosting: hosting)
         self.panel = panel
@@ -117,7 +123,7 @@ final class NotchHost {
         }
         globalMouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
             Task { @MainActor in
-                self?.clickedOutside()
+                self?.handleGlobalMouseDown()
             }
         }
         localMouseMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
@@ -261,7 +267,7 @@ final class NotchHost {
             panelFrame: panel.frame,
             expanded: isExpanded || panelFrameIsExpanded
         )
-        return frame.contains(NSEvent.mouseLocation)
+        return geometry.containsMouse(NSEvent.mouseLocation, in: frame)
     }
 
     private func updateHoverFromMouseLocation() {
@@ -525,6 +531,18 @@ final class NotchHost {
     private func clickedOutside() {
         guard isExpanded, !isDraggingClip else { return }
         collapse()
+    }
+
+    /// Clicks that miss the panel (top screen edge, island menu-bar gap) never
+    /// become local events. Treat those as overlay clicks when collapsed.
+    private func handleGlobalMouseDown() {
+        if hoverFrameContainsMouse() {
+            if !isExpanded {
+                clickedNotch()
+            }
+            return
+        }
+        clickedOutside()
     }
 
     private func handleLocalMouseDown(_ event: NSEvent) {
