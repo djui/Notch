@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [1.0] - 2026-09-15
+
 ### Added
 
 - Now Playing in the collapsed and expanded notch
@@ -46,3 +48,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Clicking a clipboard card pastes it (⌘1 already did)
 - Expand and collapse stay anchored to the top center
 - Reopen a hidden or windowless player when clicking the Now Playing title
+
+[Unreleased]: https://github.com/djui/Notch/compare/v1.0...HEAD
+[1.0]: https://github.com/djui/Notch/releases/tag/v1.0
