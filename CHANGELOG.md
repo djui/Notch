@@ -22,6 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Clear clipboard history while keeping pinned clips
 - Full Disk Access status on the Permissions pane for Focus mode identity
 - Optional setting to disable clipboard history (enabled by default)
+- Click the expanded Now Playing title to open the source app, window, or browser tab
 
 ### Changed
 

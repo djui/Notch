@@ -4,7 +4,6 @@ import Foundation
 @MainActor
 enum NowPlayingArtwork {
     private static let cache = NSCache<NSString, NSImage>()
-    private static var deniedAutomation = Set<String>()
     private static let session: URLSession = {
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 8
@@ -131,15 +130,11 @@ enum NowPlayingArtwork {
 
     private static func mediaTabURL(for item: NowPlayingItem) async -> URL? {
         guard let bundleID = item.bundleIdentifier, !bundleID.isEmpty else { return nil }
-        if deniedAutomation.contains(bundleID) { return nil }
         let tabs = await Task.detached(priority: .utility) {
-            BrowserTabLookup.tabs(bundleID: bundleID)
+            BrowserMediaTabs.tabs(bundleID: bundleID, mediaOnly: true)
         }.value
         switch tabs {
-        case .denied:
-            deniedAutomation.insert(bundleID)
-            return nil
-        case .failed:
+        case .denied, .failed:
             return nil
         case .ok(let found):
             return pickMediaURL(from: found, item: item)
@@ -147,16 +142,14 @@ enum NowPlayingArtwork {
     }
 
     private static func pickMediaURL(from tabs: [BrowserTab], item: NowPlayingItem) -> URL? {
-        let relevant = tabs.filter { isYouTubeURL($0.url) || isSpotifyURL($0.url) }
+        let relevant = tabs.filter { tab in
+            guard let url = tab.url else { return false }
+            return isYouTubeURL(url) || isSpotifyURL(url)
+        }
         guard !relevant.isEmpty else { return nil }
-        let title = item.displayTitle.lowercased()
-        let artist = item.artist.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let scored = relevant.map { tab -> (BrowserTab, Int) in
-            let tabTitle = tab.title.lowercased()
-            var score = 0
-            if !title.isEmpty, tabTitle.contains(title) { score += 10 }
-            if !artist.isEmpty, tabTitle.contains(artist) { score += 3 }
-            if isYouTubeURL(tab.url) { score += 1 }
+            var score = BrowserMediaTabs.score(tab, item: item)
+            if let url = tab.url, isYouTubeURL(url) { score += 1 }
             return (tab, score)
         }
         if let best = scored.max(by: { $0.1 < $1.1 }), best.1 >= 10 {
@@ -276,92 +269,6 @@ enum NowPlayingArtwork {
             case thumbnailURL = "thumbnail_url"
         }
     }
-}
-
-private struct BrowserTab: Sendable {
-    var title: String
-    var url: URL
-}
-
-private enum TabLookup: Sendable {
-    case ok([BrowserTab])
-    case denied
-    case failed
-}
-
-private enum BrowserTabLookup {
-    static func tabs(bundleID: String) -> TabLookup {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        process.arguments = ["-l", "JavaScript", "-e", tabScript, bundleID]
-        let stdout = Pipe()
-        let stderr = Pipe()
-        process.standardOutput = stdout
-        process.standardError = stderr
-        do {
-            try process.run()
-        } catch {
-            return .failed
-        }
-        let deadline = Date().addingTimeInterval(6)
-        while process.isRunning, Date() < deadline {
-            Thread.sleep(forTimeInterval: 0.05)
-        }
-        if process.isRunning {
-            process.terminate()
-            return .failed
-        }
-        let err = String(data: stderr.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        if err.localizedCaseInsensitiveContains("not authorized")
-            || err.contains("-1743")
-            || err.localizedCaseInsensitiveContains("not allowed")
-        {
-            return .denied
-        }
-        let data = stdout.fileHandleForReading.readDataToEndOfFile()
-        guard let payload = try? JSONDecoder().decode(TabPayload.self, from: data) else { return .failed }
-        return .ok(payload.tabs.compactMap { tab in
-            guard let url = URL(string: tab.url), !tab.url.isEmpty else { return nil }
-            return BrowserTab(title: tab.title, url: url)
-        })
-    }
-
-    private struct TabPayload: Decodable {
-        var tabs: [TabDTO]
-    }
-
-    private struct TabDTO: Decodable {
-        var title: String
-        var url: String
-    }
-
-    private static let tabScript = """
-    function run(argv) {
-      const bundleID = argv[0];
-      const payload = { tabs: [] };
-      try {
-        const app = Application(bundleID);
-        const windows = app.windows();
-        for (let i = 0; i < windows.length; i++) {
-          const tabs = windows[i].tabs();
-          for (let j = 0; j < tabs.length; j++) {
-            let title = '';
-            let url = '';
-            try { title = String(tabs[j].title()); } catch (e) {
-              try { title = String(tabs[j].name()); } catch (e2) {}
-            }
-            try { url = String(tabs[j].url()); } catch (e) {}
-            if (url && /youtube\\.com|youtu\\.be|open\\.spotify\\.com|music\\.youtube\\.com/i.test(url)) {
-              payload.tabs.push({ title: title, url: url });
-            }
-          }
-        }
-      } catch (e) {
-        payload.error = String(e);
-      }
-      return JSON.stringify(payload);
-    }
-    """
 }
 
 private enum SpotifyArtworkLookup {

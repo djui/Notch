@@ -200,6 +200,7 @@ final class NowPlayingMonitor {
         var artist: String?
         var album: String?
         var bundleIdentifier: String?
+        var parentBundleIdentifier: String?
         var appName: String?
         var isPlaying: Bool?
 
@@ -211,10 +212,39 @@ final class NowPlayingMonitor {
                 title: title,
                 artist: artist,
                 album: album?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "",
-                bundleIdentifier: bundleIdentifier,
+                bundleIdentifier: Self.preferredBundleID(bundleIdentifier, parent: parentBundleIdentifier),
                 appName: appName,
                 isPlaying: isPlaying ?? false
             )
+        }
+
+        private static func preferredBundleID(_ child: String?, parent: String?) -> String? {
+            let childID = nonempty(child)
+            let parentID = nonempty(parent)
+            if let childID {
+                if isHelperBundle(childID), let parentID { return parentID }
+                if let parentID, NowPlayingItem.isBrowserBundle(parentID), !NowPlayingItem.isBrowserBundle(childID) {
+                    return parentID
+                }
+                return childID
+            }
+            return parentID
+        }
+
+        private static func nonempty(_ value: String?) -> String? {
+            let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return trimmed.isEmpty ? nil : trimmed
+        }
+
+        private static func isHelperBundle(_ id: String) -> Bool {
+            let lower = id.lowercased()
+            return lower.contains("webkit")
+                || lower.contains("gpu")
+                || lower.contains("helper")
+                || lower.contains("plugin")
+                || lower.contains("renderer")
+                || lower.contains("webcontent")
+                || lower.contains("networking")
         }
     }
 
@@ -259,12 +289,32 @@ final class NowPlayingMonitor {
       const path = Request.localNowPlayingPlayerPath;
       const client = path ? path.client : null;
       const rate = num('kMRMediaRemoteNowPlayingInfoPlaybackRate');
+      function clientString(target, key) {
+        if (!target) return null;
+        try {
+          const direct = unwrap(target[key]);
+          if (direct) return String(direct);
+        } catch (e) {}
+        try {
+          const viaKey = unwrap(target.valueForKey(key));
+          if (viaKey) return String(viaKey);
+        } catch (e) {}
+        return null;
+      }
+      const bundleIdentifier = clientString(client, 'bundleIdentifier');
+      let parentBundleIdentifier = clientString(client, 'parentApplicationBundleIdentifier');
+      if (!parentBundleIdentifier) {
+        try {
+          parentBundleIdentifier = clientString(client.parentApplication, 'bundleIdentifier');
+        } catch (e) {}
+      }
       return {
         title: str('kMRMediaRemoteNowPlayingInfoTitle'),
         artist: str('kMRMediaRemoteNowPlayingInfoArtist'),
         album: str('kMRMediaRemoteNowPlayingInfoAlbum'),
-        bundleIdentifier: client ? (unwrap(client.bundleIdentifier) || null) : null,
-        appName: client ? (unwrap(client.displayName) || null) : null,
+        bundleIdentifier: bundleIdentifier,
+        parentBundleIdentifier: parentBundleIdentifier,
+        appName: clientString(client, 'displayName'),
         isPlaying: rate === null ? false : rate > 0
       };
     }

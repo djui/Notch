@@ -360,6 +360,15 @@ final class NotchHost {
         AboutWindowController.shared.show()
     }
 
+    func openNowPlayingSource() {
+        let item = AppModel.shared.nowPlaying.item
+        guard item != nil else { return }
+        suppressHoverExpand = true
+        collapse(restoreApp: false)
+        panel?.setAcceptsKeyboard(false)
+        NowPlayingSource.reveal(item)
+    }
+
     func startDragging(_ item: ClipItem) {
         guard !isDraggingClip else { return }
         guard let hostingView, let event = NSApp.currentEvent else { return }

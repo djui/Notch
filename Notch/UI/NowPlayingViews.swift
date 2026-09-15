@@ -30,24 +30,33 @@ struct NowPlayingCollapsedView: View {
 struct NowPlayingBarView: View {
     @Environment(NowPlayingMonitor.self) private var nowPlaying
     @Environment(AppSettings.self) private var settings
+    @Environment(NotchHost.self) private var host
 
     var body: some View {
         if settings.showNowPlaying, let item = nowPlaying.item {
             HStack(spacing: 10) {
                 NowPlayingArtworkView(size: 34, showsAppBadge: true)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(item.displayTitle.isEmpty ? item.displayLine : item.displayTitle)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.92))
-                        .lineLimit(1)
-                    if !item.artist.isEmpty {
-                        Text(item.artist)
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.45))
+                Button {
+                    host.openNowPlayingSource()
+                } label: {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(item.displayTitle.isEmpty ? item.displayLine : item.displayTitle)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.92))
                             .lineLimit(1)
+                        if !item.artist.isEmpty {
+                            Text(item.artist)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.45))
+                                .lineLimit(1)
+                        }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .buttonStyle(.plain)
+                .pointerStyle(.link)
+                .help(sourceHelp(for: item))
 
                 if item.isPlaying {
                     EqualizerView(isPlaying: true, height: 14)
@@ -67,6 +76,12 @@ struct NowPlayingBarView: View {
             }
             .padding(.horizontal, 8)
         }
+    }
+
+    private func sourceHelp(for item: NowPlayingItem) -> String {
+        let name = item.appName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if name.isEmpty { return "Show playing app" }
+        return "Show in \(name)"
     }
 }
 
