@@ -29,7 +29,7 @@
 	<key>NSAppleEventsUsageDescription</key>
 	<string>Notch uses automation to read Now Playing artwork from Music, Spotify, and your browsers.</string>
 	<key>NSHumanReadableCopyright</key>
-	<string>Copyright © 2026</string>
+	<string>Copyright © 2026 Uwe Dauernheim</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 </dict>
