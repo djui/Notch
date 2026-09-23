@@ -101,12 +101,7 @@ struct NotchView: View {
         .animation(.easeInOut(duration: 0.32), value: collapsedSceneID)
     }
 
-    @ViewBuilder
     private var expandedBody: some View {
-        if let module = host.selectedModule {
-            module.expandedView()
-        } else {
-            Color.clear
-        }
+        NowPlayingBarView()
     }
 }

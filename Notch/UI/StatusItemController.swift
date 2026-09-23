@@ -41,39 +41,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
-        let shortcut = settings?.openShortcut ?? .defaultOpen
-        let open = menu.addItem(withTitle: "Open Notch", action: #selector(openNotch), keyEquivalent: shortcut.menuKeyEquivalent)
-        open.keyEquivalentModifierMask = shortcut.nsEventModifiers
+        let open = menu.addItem(withTitle: "Open Notch", action: #selector(openNotch), keyEquivalent: "")
         open.target = self
-
-        if settings?.clipboardEnabled == true {
-            let paused = settings?.isPaused == true
-            let pause = menu.addItem(
-                withTitle: paused ? "Resume Capture" : "Pause Capture",
-                action: #selector(togglePause),
-                keyEquivalent: ""
-            )
-            pause.target = self
-
-            let clear = menu.addItem(
-                withTitle: "Clear Clipboard History",
-                action: #selector(clearHistory),
-                keyEquivalent: ""
-            )
-            clear.target = self
-            clear.isEnabled = AppModel.shared.store.unpinnedCount > 0
-
-            let plainShortcut = settings?.plainPasteShortcut ?? .defaultPlainPaste
-            if plainShortcut.isValidGlobal, !plainShortcut.menuKeyEquivalent.isEmpty {
-                let plain = menu.addItem(
-                    withTitle: "Paste as Plain Text",
-                    action: #selector(pastePlain),
-                    keyEquivalent: plainShortcut.menuKeyEquivalent
-                )
-                plain.keyEquivalentModifierMask = plainShortcut.nsEventModifiers
-                plain.target = self
-            }
-        }
 
         menu.addItem(.separator())
         let layoutMenu = NSMenu()
@@ -109,18 +78,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     @objc private func openNotch() {
         host?.toggleFromHotkey()
-    }
-
-    @objc private func pastePlain() {
-        AppModel.shared.pasteSelectedAsPlainText()
-    }
-
-    @objc private func togglePause() {
-        settings?.isPaused.toggle()
-    }
-
-    @objc private func clearHistory() {
-        AppModel.shared.store.confirmAndClearHistory()
     }
 
     @objc private func selectLayout(_ sender: NSMenuItem) {

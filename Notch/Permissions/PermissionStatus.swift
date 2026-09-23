@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import CoreGraphics
 import Foundation
 
 enum PermissionState: Equatable {
@@ -40,11 +41,18 @@ enum AutomationTarget: String, CaseIterable, Identifiable {
 
 enum PermissionStatus {
     static var isAccessibilityTrusted: Bool {
-        PasteService.isTrusted
+        if AXIsProcessTrusted() { return true }
+        let prompt = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
+        if AXIsProcessTrustedWithOptions([prompt: false] as CFDictionary) { return true }
+        return CGPreflightPostEventAccess()
     }
 
     static func requestAccessibility() {
-        PasteService.requestTrust()
+        let prompt = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
+        _ = AXIsProcessTrustedWithOptions([prompt: true] as CFDictionary)
+        if !isAccessibilityTrusted {
+            _ = CGRequestPostEventAccess()
+        }
     }
 
     static func openAccessibilitySettings() {
@@ -126,7 +134,7 @@ enum PermissionStatus {
 @Observable
 @MainActor
 final class PermissionCenter {
-    var accessibilityTrusted = PasteService.isTrusted
+    var accessibilityTrusted = PermissionStatus.isAccessibilityTrusted
     var focusDatabaseReadable = FocusMonitor.canReadAssertions
     var automation: [AutomationTarget: PermissionState] = [:]
 
@@ -141,7 +149,7 @@ final class PermissionCenter {
     }
 
     func refreshAccessibility() {
-        accessibilityTrusted = PasteService.isTrusted
+        accessibilityTrusted = PermissionStatus.isAccessibilityTrusted
     }
 
     func requestAccessibility() {

@@ -11,8 +11,6 @@ final class NotchHost {
     private(set) var visualSize: CGSize
     private(set) var modules: [any NotchModule] = []
     var selectedModuleID: String?
-    var searchFocusGeneration = 0
-    private(set) var isDraggingClip = false
     private(set) var suppressHoverExpand = false
     private(set) var panelFrameIsExpanded = false
     private(set) var layoutGeneration = 0
@@ -35,7 +33,6 @@ final class NotchHost {
     private var globalHoverMonitor: Any?
     private var localHoverMonitor: Any?
     private var isMouseInHoverTarget = false
-    private var draggingSource: ClipDraggingSource?
     private var visibility: NotchVisibility?
     private let morphAnimator = NotchMorphAnimator()
     private var workspaceObservers: [NSObjectProtocol] = []
@@ -60,7 +57,6 @@ final class NotchHost {
         let panel = NotchPanel()
         let root = NotchRootView()
             .environment(self)
-            .environment(AppModel.shared.store)
             .environment(AppModel.shared.settings)
             .environment(AppModel.shared.nowPlaying)
             .environment(AppModel.shared.liveActivity)
@@ -177,17 +173,6 @@ final class NotchHost {
         hostingView = nil
     }
 
-    func requestSearchFocus() {
-        if !isExpanded {
-            expand(pinned: true)
-            return
-        }
-        if !isPinned {
-            isPinned = true
-        }
-        focusSearchField()
-    }
-
     func visibilityRefresh() {
         visibility?.refresh()
     }
@@ -219,18 +204,10 @@ final class NotchHost {
         updateHoverFromMouseLocation()
     }
 
-    func applyClipboardEnabled() {
-        geometry = currentGeometry()
-        if isExpanded {
-            setWindowToCurrentState()
-        }
-    }
-
     private func currentGeometry(mouseScreenForHotkey: Bool = false) -> NotchGeometry {
         .current(
             style: AppModel.shared.settings.layoutStyle,
-            mouseScreenForHotkey: mouseScreenForHotkey,
-            clipboardEnabled: AppModel.shared.settings.clipboardEnabled
+            mouseScreenForHotkey: mouseScreenForHotkey
         )
     }
 
@@ -256,7 +233,7 @@ final class NotchHost {
         isMouseInHoverTarget = false
         suppressHoverExpand = false
         applyHoverPeek(false)
-        guard isExpanded, !isPinned, !isDraggingClip else { return }
+        guard isExpanded, !isPinned else { return }
         scheduleCollapse()
     }
 
@@ -293,18 +270,13 @@ final class NotchHost {
         if isPinned && isExpanded {
             collapse()
         } else {
-            AppModel.shared.store.selectFirst()
             expand(pinned: true)
         }
     }
 
     func expand(pinned: Bool) {
-        let opening = !isExpanded
         cancelCollapse()
         rememberFrontmostApp()
-        if opening {
-            AppModel.shared.store.selectFirst()
-        }
         isPinned = pinned
         isHoverPeeking = false
         panel?.hasShadow = false
@@ -317,22 +289,10 @@ final class NotchHost {
         panel?.setFrameImmediately(geometry.expandedPanelFrame)
         panelFrameIsExpanded = true
         isExpanded = true
-        let shouldFocusSearch = AppModel.shared.settings.clipboardEnabled
-        animateVisualSize(to: geometry.expandedSize, curve: .expand) { [weak self] in
-            guard let self, self.isExpanded, shouldFocusSearch else { return }
-            self.focusSearchField()
-        }
-    }
-
-    func pinOpen() {
-        guard isExpanded else { return }
-        isPinned = true
-        cancelCollapse()
+        animateVisualSize(to: geometry.expandedSize, curve: .expand)
     }
 
     func collapse(restoreApp: Bool = true) {
-        isDraggingClip = false
-        draggingSource = nil
         collapseWorkItem?.cancel()
         collapseWorkItem = nil
         isPinned = false
@@ -340,21 +300,12 @@ final class NotchHost {
         isHoverPeeking = false
         panel?.hasShadow = false
         panel?.setAcceptsKeyboard(false)
-        AppModel.shared.store.searchQuery = ""
         animateVisualSize(to: geometry.collapsedSize, curve: .easeOut) { [weak self] in
             self?.finishWindowShrink()
         }
         if restoreApp, !AccessoryWindowPolicy.hasVisibleWindows {
             previousApp?.activate()
         }
-    }
-
-    func pasteItem(_ item: ClipItem, plainText: Bool) {
-        let app = previousApp
-        suppressHoverExpand = true
-        collapse(restoreApp: false)
-        panel?.setAcceptsKeyboard(false)
-        PasteService.paste(item, plainText: plainText, into: app)
     }
 
     func openSettings() {
@@ -378,56 +329,6 @@ final class NotchHost {
         collapse(restoreApp: false)
         panel?.setAcceptsKeyboard(false)
         NowPlayingSource.reveal(item)
-    }
-
-    func startDragging(_ item: ClipItem) {
-        guard !isDraggingClip else { return }
-        guard let hostingView, let event = NSApp.currentEvent else { return }
-        let writers = item.draggingWriters()
-        guard !writers.isEmpty else { return }
-
-        isDraggingClip = true
-        cancelCollapse()
-
-        let preview = item.dragPreviewImage()
-        let maxPreview = NSSize(width: 148, height: 96)
-        let scale = min(1, min(maxPreview.width / max(preview.size.width, 1), maxPreview.height / max(preview.size.height, 1)))
-        let previewSize = NSSize(
-            width: max(48, preview.size.width * scale),
-            height: max(32, preview.size.height * scale)
-        )
-        let location = hostingView.convert(event.locationInWindow, from: nil)
-        let origin = NSPoint(x: location.x - previewSize.width / 2, y: location.y - previewSize.height / 2)
-
-        let source = ClipDraggingSource { [weak self] in
-            self?.endClipDrag()
-        }
-        draggingSource = source
-
-        let dragItems = writers.enumerated().map { index, writer -> NSDraggingItem in
-            let dragItem = NSDraggingItem(pasteboardWriter: writer)
-            if index == 0 {
-                dragItem.setDraggingFrame(NSRect(origin: origin, size: previewSize), contents: preview)
-            } else {
-                dragItem.setDraggingFrame(NSRect(origin: origin, size: .zero), contents: nil)
-            }
-            return dragItem
-        }
-
-        let session = hostingView.beginDraggingSession(with: dragItems, event: event, source: source)
-        session.animatesToStartingPositionsOnCancelOrFail = true
-    }
-
-    private func endClipDrag() {
-        guard isDraggingClip else { return }
-        isDraggingClip = false
-        draggingSource = nil
-        if !isPinned {
-            let overPanel = panel.map { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) } ?? false
-            if !overPanel {
-                scheduleCollapse()
-            }
-        }
     }
 
     private func rememberFrontmostApp() {
@@ -534,7 +435,7 @@ final class NotchHost {
     }
 
     private func clickedOutside() {
-        guard isExpanded, !isDraggingClip else { return }
+        guard isExpanded else { return }
         collapse()
     }
 
@@ -569,157 +470,23 @@ final class NotchHost {
             return nil
         }
 
-        let clipboardEnabled = AppModel.shared.settings.clipboardEnabled
-
         if event.keyCode == 53 { // escape
-            if clipboardEnabled, !AppModel.shared.store.searchQuery.isEmpty {
-                AppModel.shared.store.searchQuery = ""
-                return nil
-            }
             collapse()
-            return nil
-        }
-
-        if clipboardEnabled, flags.contains(.command), event.charactersIgnoringModifiers == "f" {
-            requestSearchFocus()
-            return nil
-        }
-
-        if clipboardEnabled, flags.contains(.command), let number = commandNumber(from: event) {
-            let items = AppModel.shared.store.filteredItems
-            let index = number - 1
-            if items.indices.contains(index) {
-                pasteItem(items[index], plainText: flags.contains(.shift))
-            }
-            return nil
-        }
-
-        if clipboardEnabled, AppModel.shared.settings.plainPasteShortcut.matches(event) {
-            if let selected = AppModel.shared.store.selectedItem {
-                pasteItem(selected, plainText: true)
-            }
-            return nil
-        }
-
-        if clipboardEnabled, event.keyCode == 36 || event.keyCode == 76 { // return
-            if let selected = AppModel.shared.store.selectedItem {
-                pasteItem(selected, plainText: false)
-                return nil
-            }
-        }
-
-        // Arrows move the card selection; the previous app is restored only on paste/escape.
-        if clipboardEnabled, event.keyCode == 123 || event.keyCode == 126 { // left, up
-            AppModel.shared.store.selectPrevious()
-            return nil
-        }
-        if clipboardEnabled, event.keyCode == 124 || event.keyCode == 125 { // right, down
-            AppModel.shared.store.selectNext()
-            return nil
-        }
-
-        let fieldIsEditing = panel?.firstResponder is NSTextView
-
-        if clipboardEnabled, event.keyCode == 51 { // delete
-            if fieldIsEditing { return event }
-            var query = AppModel.shared.store.searchQuery
-            if !query.isEmpty {
-                query.removeLast()
-                AppModel.shared.store.searchQuery = query
-                return nil
-            }
-        }
-
-        if clipboardEnabled, let text = searchInsertText(from: event) {
-            pinOpen()
-            if fieldIsEditing { return event }
-            AppModel.shared.store.searchQuery += text
-            focusSearchField()
             return nil
         }
 
         return event
     }
-
-    private func focusSearchField() {
-        searchFocusGeneration += 1
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(40))
-            guard isExpanded, let panel else { return }
-            panel.makeKey()
-            if let hostingView, let field = Self.firstTextField(in: hostingView) {
-                panel.makeFirstResponder(field)
-            } else {
-                panel.makeFirstResponder(hostingView)
-            }
-        }
-    }
-
-    private static func firstTextField(in view: NSView) -> NSTextField? {
-        if let field = view as? NSTextField {
-            return field
-        }
-        for subview in view.subviews {
-            if let field = firstTextField(in: subview) {
-                return field
-            }
-        }
-        return nil
-    }
-
-    private func searchInsertText(from event: NSEvent) -> String? {
-        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        if flags.contains(.command) || flags.contains(.control) { return nil }
-        switch event.keyCode {
-        case 36, 48, 53, 76, 123, 124, 125, 126, 51, 117:
-            return nil
-        default:
-            break
-        }
-        guard let characters = event.characters, !characters.isEmpty else { return nil }
-        let filtered = characters.filter { !$0.isNewline && $0 != "\u{1b}" }
-        return filtered.isEmpty ? nil : String(filtered)
-    }
-
-    private func commandNumber(from event: NSEvent) -> Int? {
-        if let chars = event.charactersIgnoringModifiers, let number = Int(chars), (1...9).contains(number) {
-            return number
-        }
-        let ansi: [UInt16: Int] = [
-            18: 1, 19: 2, 20: 3, 21: 4, 23: 5, 22: 6, 26: 7, 28: 8, 25: 9
-        ]
-        return ansi[event.keyCode]
-    }
-}
-
-private final class ClipDraggingSource: NSObject, NSDraggingSource {
-    let onEnd: () -> Void
-
-    init(onEnd: @escaping () -> Void) {
-        self.onEnd = onEnd
-    }
-
-    func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
-        .copy
-    }
-
-    func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
-        DispatchQueue.main.async { [onEnd] in
-            onEnd()
-        }
-    }
 }
 
 struct NotchRootView: View {
     @Environment(NotchHost.self) private var host
-    @Environment(ClipboardStore.self) private var store
     @Environment(AppSettings.self) private var settings
 
     var body: some View {
         NotchView()
             .id(host.layoutGeneration)
             .environment(host)
-            .environment(store)
             .environment(settings)
             .environment(AppModel.shared.nowPlaying)
             .environment(AppModel.shared.liveActivity)

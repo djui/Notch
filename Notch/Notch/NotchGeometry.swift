@@ -20,7 +20,6 @@ struct NotchGeometry: Equatable {
     static let expandedIslandCornerRadius: CGFloat = 32
     static let collapsedNotchCornerRadius: CGFloat = 11
     static let expandedNotchCornerRadius: CGFloat = 26
-    static let clipboardExpandedHeight: CGFloat = 300
     static let compactExpandedWidth: CGFloat = 392
     static let compactExpandedHeight: CGFloat = 88
 
@@ -144,13 +143,11 @@ struct NotchGeometry: Equatable {
 
     static func current(
         style: NotchLayoutStyle,
-        mouseScreenForHotkey: Bool = false,
-        clipboardEnabled: Bool = true
+        mouseScreenForHotkey: Bool = false
     ) -> NotchGeometry {
         make(
             for: preferredScreen(preferMouse: mouseScreenForHotkey),
-            style: style,
-            clipboardEnabled: clipboardEnabled
+            style: style
         )
     }
 
@@ -171,8 +168,7 @@ struct NotchGeometry: Equatable {
 
     static func make(
         for screen: NSScreen,
-        style: NotchLayoutStyle,
-        clipboardEnabled: Bool = true
+        style: NotchLayoutStyle
     ) -> NotchGeometry {
         let collapsed: CGRect
         let isArtificial: Bool
@@ -200,7 +196,6 @@ struct NotchGeometry: Equatable {
             collapsedFrame: collapsed,
             expandedSize: expandedSize(
                 for: screen,
-                clipboardEnabled: clipboardEnabled,
                 collapsedWidth: collapsed.width
             ),
             earRadius: earRadius
@@ -209,16 +204,9 @@ struct NotchGeometry: Equatable {
 
     private static func expandedSize(
         for screen: NSScreen,
-        clipboardEnabled: Bool,
         collapsedWidth: CGFloat
     ) -> CGSize {
-        if clipboardEnabled {
-            return CGSize(
-                width: min(760, max(520, screen.frame.width * 0.62)),
-                height: clipboardExpandedHeight
-            )
-        }
-        return CGSize(
+        CGSize(
             width: min(screen.frame.width * 0.55, max(collapsedWidth + 16, compactExpandedWidth)),
             height: compactExpandedHeight
         )

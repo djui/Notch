@@ -2,7 +2,7 @@
 
 A macOS overlay that sits on the built-in display notch and expands into a Dynamic Island–style tray.
 
-It shows Now Playing, optional clipboard history, and live activities for charging, Low Power Mode, and Focus.
+It shows Now Playing and live activities for charging, Low Power Mode, and Focus. Clipboard history lives in [Clip](https://github.com/djui/Clip).
 
 Requires **macOS 15** or later.
 
@@ -24,23 +24,15 @@ Then open the app normally. First launch walks through permissions and enables l
 
 - **Layouts.** Switch between Notch and Dynamic Island from Settings, the overlay, or the menu bar.
 - **Now Playing.** Title, artist, artwork, and playback controls in the collapsed and expanded notch. Click the expanded title to open the source app, window, or browser tab.
-- **Clipboard history.** Search, pin, and paste clips. Turn it off in Settings if you do not want copies captured. History stays on this Mac in Application Support.
 - **Live activities.** Charging, Low Power Mode, and Focus appear in the collapsed notch.
+- **Open.** Hover or click the notch. Hover can be turned off in Settings.
 - **Hides by default** in fullscreen, Mission Control, games, and screen capture. That can be overridden in Settings.
-
-## Shortcuts
-
-| Shortcut | Action |
-| --- | --- |
-| ⌘⇧V | Open Notch (customizable) |
-| ⇧↩ | Paste as plain text (customizable) |
-| ⌘1–⌘9 | Paste a clipboard card |
 
 ## Permissions
 
 | Permission | Used for |
 | --- | --- |
-| Accessibility | Paste into other apps |
+| Accessibility | Bring the playing app forward |
 | Automation (Music, Spotify, Safari, Chrome) | Now Playing artwork, controls, and browser tabs with audio |
 | Full Disk Access | Focus mode name and icon |
 

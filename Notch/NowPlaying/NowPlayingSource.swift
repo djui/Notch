@@ -74,7 +74,7 @@ enum NowPlayingSource {
     }
 
     private static func raiseMatchingWindow(for item: NowPlayingItem, app: NSRunningApplication) {
-        guard PasteService.isTrusted else { return }
+        guard PermissionStatus.isAccessibilityTrusted else { return }
 
         let appElement = AXUIElementCreateApplication(app.processIdentifier)
         AXUIElementSetAttributeValue(appElement, kAXHiddenAttribute as CFString, kCFBooleanFalse)

@@ -44,7 +44,6 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         if window == nil {
             let root = SettingsView()
                 .environment(AppModel.shared.settings)
-                .environment(AppModel.shared.store)
                 .environment(AppModel.shared.nowPlaying)
             let hosting = NSHostingController(rootView: root)
             let window = NSWindow(contentViewController: hosting)

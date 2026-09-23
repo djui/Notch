@@ -97,11 +97,11 @@ struct PermissionOnboardingView: View {
             if step == .accessibility {
                 HStack(spacing: 0) {
                     VStack(spacing: 8) {
-                        Image(systemName: "doc.on.clipboard.fill")
+                        Image(systemName: "music.note")
                             .font(.system(size: 28, weight: .medium))
                             .foregroundStyle(.secondary)
                             .frame(width: 42, height: 42)
-                        Text("Clipboard")
+                        Text("Now Playing")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -137,7 +137,7 @@ struct PermissionOnboardingView: View {
     private var title: String {
         switch step {
         case .accessibility:
-            "Notch needs your permission to paste from the clipboard."
+            "Notch needs your permission to bring the playing app forward."
         case .media:
             "Notch needs your permission to control and display your playing music."
         case .browsers:

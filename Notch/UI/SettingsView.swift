@@ -3,7 +3,6 @@ import SwiftUI
 
 private enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
     case app
-    case clipboard
     case media
     case permissions
     case about
@@ -13,7 +12,6 @@ private enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
     var title: String {
         switch self {
         case .app: "App"
-        case .clipboard: "Clipboard"
         case .media: "Media Playback"
         case .permissions: "Permissions"
         case .about: "About"
@@ -23,7 +21,6 @@ private enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
     var symbol: String {
         switch self {
         case .app: "gearshape"
-        case .clipboard: "doc.on.clipboard"
         case .media: "play.circle"
         case .permissions: "hand.raised"
         case .about: "info.circle"
@@ -61,8 +58,6 @@ private struct SettingsDetailView: View {
         switch pane {
         case .app:
             AppSettingsPane()
-        case .clipboard:
-            ClipboardSettingsPane()
         case .media:
             MediaPlaybackSettingsPane()
         case .permissions:
@@ -97,14 +92,6 @@ private struct AppSettingsPane: View {
                 Toggle("Show menu bar icon", isOn: Bindable(settings).showStatusItem)
                 Toggle("Open on hover", isOn: Bindable(settings).openOnHover)
                 Toggle("Show during fullscreen, Mission Control, and screenshots", isOn: Bindable(settings).showInSystemSurfaces)
-                HStack {
-                    Text("Open Notch")
-                    Spacer()
-                    HotkeyRecorder(
-                        shortcut: Bindable(settings).openShortcut,
-                        defaultShortcut: .defaultOpen
-                    )
-                }
             }
         }
         .formStyle(.grouped)
@@ -116,59 +103,6 @@ private struct AppSettingsPane: View {
             get: { settings.launchAtLogin },
             set: { settings.setLaunchAtLogin($0) }
         )
-    }
-}
-
-private struct ClipboardSettingsPane: View {
-    @Environment(AppSettings.self) private var settings
-    @Environment(ClipboardStore.self) private var store
-
-    var body: some View {
-        Form {
-            Section {
-                Toggle("Enable clipboard history", isOn: Bindable(settings).clipboardEnabled)
-                Text("When off, Notch stops capturing copies and hides clipboard in the notch.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section {
-                Toggle("Pause clipboard capture", isOn: Bindable(settings).isPaused)
-                Stepper(value: Bindable(settings).historyLimit, in: 20...2000, step: 20) {
-                    Text("Keep \(settings.historyLimit) items")
-                }
-                Text("Pinned items are kept even when the limit is reached.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .disabled(!settings.clipboardEnabled)
-
-            Section {
-                Button("Clear Clipboard History", role: .destructive) {
-                    store.confirmAndClearHistory()
-                }
-                .disabled(store.unpinnedCount == 0)
-                Text("Removes unpinned clips. Pinned items stay.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .disabled(!settings.clipboardEnabled)
-
-            Section {
-                HStack {
-                    Text("Paste as Plain Text")
-                    Spacer()
-                    HotkeyRecorder(
-                        shortcut: Bindable(settings).plainPasteShortcut,
-                        defaultShortcut: .defaultPlainPaste,
-                        allowShiftOnly: true
-                    )
-                }
-            }
-            .disabled(!settings.clipboardEnabled)
-        }
-        .formStyle(.grouped)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 }
 
@@ -194,7 +128,7 @@ private struct PermissionsSettingsPane: View {
             Section("Paste") {
                 permissionStatusRow(
                     title: "Accessibility",
-                    detail: "Required to paste into other apps.",
+                    detail: "Required to bring the playing app forward.",
                     state: center.accessibilityTrusted ? .granted : .denied
                 )
                 if !center.accessibilityTrusted {
