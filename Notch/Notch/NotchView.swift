@@ -60,6 +60,8 @@ struct NotchView: View {
                     playerReveal: playerReveal,
                     sideInset: host.geometry.contentSideInset(progress: morphProgress)
                 )
+                    .frame(width: host.visualSize.width, height: host.visualSize.height)
+                    .clipped()
                     .opacity(nowPlayingStageOpacity)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

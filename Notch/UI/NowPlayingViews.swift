@@ -16,11 +16,14 @@ struct NowPlayingStageView: View {
             ZStack {
                 compactLine(item)
                     .opacity(compactOpacity)
-                player(item)
-                    .opacity(playerReveal)
-                    .allowsHitTesting(host.isExpanded && playerReveal > 0.9)
+                if playerReveal > 0 {
+                    player(item)
+                        .opacity(playerReveal)
+                        .allowsHitTesting(host.isExpanded && playerReveal > 0.9)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
             .animation(.easeOut(duration: 0.18), value: item.displayLine)
         }
     }
@@ -49,10 +52,15 @@ struct NowPlayingStageView: View {
         .allowsHitTesting(false)
     }
 
-    /// The collapsed chin curves into the row. Keep the icon and label
-    /// further inside than the expanded player's side wall.
+    /// Clear the collapsed side wall without leaving a wide black gutter.
     private var compactInset: CGFloat {
-        max(36, sideInset)
+        let radii = host.geometry.cornerRadii(progress: 0)
+        switch host.geometry.layoutStyle {
+        case .notch:
+            return radii.ear + 6
+        case .island:
+            return 12
+        }
     }
 
     private func player(_ item: NowPlayingItem) -> some View {
@@ -63,26 +71,33 @@ struct NowPlayingStageView: View {
                     host.openNowPlayingSource()
                 } label: {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(item.displayTitle.isEmpty ? item.displayLine : item.displayTitle)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.94))
-                            .lineLimit(1)
+                        MarqueeText(
+                            text: item.displayTitle.isEmpty ? item.displayLine : item.displayTitle,
+                            font: .system(size: 15, weight: .semibold),
+                            color: .white.opacity(0.94),
+                            lineHeight: 18
+                        )
                         if !item.artist.isEmpty {
-                            Text(item.artist)
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.5))
-                                .lineLimit(1)
+                            MarqueeText(
+                                text: item.artist,
+                                font: .system(size: 13, weight: .medium),
+                                color: .white.opacity(0.5),
+                                lineHeight: 16
+                            )
                         }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .pointerStyle(.link)
                 .help(sourceHelp(for: item))
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                .layoutPriority(-1)
 
                 if item.isPlaying {
                     EqualizerView(isPlaying: true, height: 16)
+                        .layoutPriority(1)
                 }
             }
 
@@ -163,6 +178,113 @@ struct NowPlayingStageView: View {
             return String(format: "%d:%02d:%02d", hours, minutes, secs)
         }
         return String(format: "%d:%02d", minutes, secs)
+    }
+}
+
+/// Scrolls long titles back and forth inside the width the parent offers.
+/// Takes the offered width (does not expand to the string’s ideal size), which
+/// is what makes overflow detectable and keeps the text inside the notch.
+private struct MarqueeText: View {
+    let text: String
+    var font: Font
+    var color: Color
+    var lineHeight: CGFloat
+    /// Points per second while traveling.
+    var speed: CGFloat = 28
+    var endPause: TimeInterval = 0.9
+
+    @State private var textWidth: CGFloat = 0
+    @State private var containerWidth: CGFloat = 0
+    @State private var offset: CGFloat = 0
+    @State private var runID = 0
+
+    private var overflow: CGFloat { max(0, textWidth - containerWidth) }
+
+    var body: some View {
+        Color.clear
+            .frame(height: lineHeight)
+            .frame(maxWidth: .infinity)
+            .overlay(alignment: .leading) {
+                Text(text)
+                    .font(font)
+                    .foregroundStyle(color)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .background(
+                        GeometryReader { geo in
+                            Color.clear.preference(
+                                key: MarqueeTextWidthKey.self,
+                                value: geo.size.width
+                            )
+                        }
+                    )
+                    .offset(x: offset)
+            }
+            .clipped()
+            .background(
+                GeometryReader { geo in
+                    Color.clear.preference(
+                        key: MarqueeContainerWidthKey.self,
+                        value: geo.size.width
+                    )
+                }
+            )
+            .onPreferenceChange(MarqueeTextWidthKey.self) { textWidth = $0 }
+            .onPreferenceChange(MarqueeContainerWidthKey.self) { width in
+                if abs(containerWidth - width) > 0.5 {
+                    containerWidth = width
+                    restart()
+                }
+            }
+            .onChange(of: text) { _, _ in restart() }
+            .task(id: runID) {
+                await runMarquee()
+            }
+    }
+
+    private func restart() {
+        offset = 0
+        runID &+= 1
+    }
+
+    @MainActor
+    private func runMarquee() async {
+        offset = 0
+        // Wait for preferences + a beat at the start.
+        try? await Task.sleep(for: .seconds(endPause))
+        while !Task.isCancelled {
+            let distance = overflow
+            guard distance > 1 else {
+                offset = 0
+                // Keep the task alive so a later width change can restart via runID.
+                try? await Task.sleep(for: .seconds(0.5))
+                continue
+            }
+            let duration = max(1.2, Double(distance) / Double(speed))
+            withAnimation(.easeInOut(duration: duration)) {
+                offset = -distance
+            }
+            try? await Task.sleep(for: .seconds(duration + endPause))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeInOut(duration: duration)) {
+                offset = 0
+            }
+            try? await Task.sleep(for: .seconds(duration + endPause))
+        }
+    }
+}
+
+private struct MarqueeTextWidthKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+private struct MarqueeContainerWidthKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }
 
