@@ -8,6 +8,8 @@ final class AppSettings {
         static let didCompleteFirstLaunch = "didCompleteFirstLaunch"
         static let openOnHover = "openOnHover"
         static let showNowPlaying = "showNowPlaying"
+        static let showBattery = "showBattery"
+        static let showFocus = "showFocus"
         static let showStatusItem = "showStatusItem"
         static let showInSystemSurfaces = "showInSystemSurfaces"
         static let layoutStyle = "layoutStyle"
@@ -22,6 +24,20 @@ final class AppSettings {
 
     var showNowPlaying: Bool {
         didSet { UserDefaults.standard.set(showNowPlaying, forKey: Keys.showNowPlaying) }
+    }
+
+    var showBattery: Bool {
+        didSet {
+            UserDefaults.standard.set(showBattery, forKey: Keys.showBattery)
+            AppModel.shared.liveActivity.applyPreferences()
+        }
+    }
+
+    var showFocus: Bool {
+        didSet {
+            UserDefaults.standard.set(showFocus, forKey: Keys.showFocus)
+            AppModel.shared.liveActivity.applyPreferences()
+        }
     }
 
     var showStatusItem: Bool {
@@ -61,6 +77,16 @@ final class AppSettings {
             showNowPlaying = true
         } else {
             showNowPlaying = UserDefaults.standard.bool(forKey: Keys.showNowPlaying)
+        }
+        if UserDefaults.standard.object(forKey: Keys.showBattery) == nil {
+            showBattery = true
+        } else {
+            showBattery = UserDefaults.standard.bool(forKey: Keys.showBattery)
+        }
+        if UserDefaults.standard.object(forKey: Keys.showFocus) == nil {
+            showFocus = true
+        } else {
+            showFocus = UserDefaults.standard.bool(forKey: Keys.showFocus)
         }
         if UserDefaults.standard.object(forKey: Keys.showStatusItem) == nil {
             showStatusItem = true

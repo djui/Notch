@@ -38,6 +38,9 @@ final class NowPlayingMonitor {
 
     func togglePlayPause() {
         if var current = item {
+            let now = Date()
+            current.elapsed = current.currentElapsed(at: now)
+            current.positionDate = now
             current.isPlaying.toggle()
             item = current
         }
@@ -203,18 +206,32 @@ final class NowPlayingMonitor {
         var parentBundleIdentifier: String?
         var appName: String?
         var isPlaying: Bool?
+        var duration: Double?
+        var elapsed: Double?
+        var positionTimestamp: Double?
 
         var item: NowPlayingItem? {
             let title = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             let artist = artist?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             guard !title.isEmpty || !artist.isEmpty else { return nil }
+            let duration = max(0, duration ?? 0)
+            let sampledElapsed = max(0, elapsed ?? 0)
+            let positionDate: Date
+            if let positionTimestamp, positionTimestamp > 0 {
+                positionDate = Date(timeIntervalSince1970: positionTimestamp)
+            } else {
+                positionDate = Date()
+            }
             return NowPlayingItem(
                 title: title,
                 artist: artist,
                 album: album?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "",
                 bundleIdentifier: Self.preferredBundleID(bundleIdentifier, parent: parentBundleIdentifier),
                 appName: appName,
-                isPlaying: isPlaying ?? false
+                isPlaying: isPlaying ?? false,
+                duration: duration,
+                elapsed: duration > 0 ? min(duration, sampledElapsed) : sampledElapsed,
+                positionDate: positionDate
             )
         }
 
@@ -270,6 +287,22 @@ final class NowPlayingMonitor {
       }
     }
 
+    function timestamp(key, info) {
+      try {
+        const value = info.valueForKey(key);
+        if (!value) return null;
+        let seconds = Number(value.timeIntervalSince1970);
+        if (isNaN(seconds) || seconds <= 0) {
+          const date = ObjC.unwrap(value);
+          seconds = date instanceof Date ? date.getTime() / 1000 : NaN;
+        }
+        if (isNaN(seconds) || seconds <= 0) return null;
+        return seconds;
+      } catch (e) {
+        return null;
+      }
+    }
+
     function snapshot() {
       const Request = $.NSClassFromString('MRNowPlayingRequest');
       if (!Request) return null;
@@ -315,7 +348,10 @@ final class NowPlayingMonitor {
         bundleIdentifier: bundleIdentifier,
         parentBundleIdentifier: parentBundleIdentifier,
         appName: clientString(client, 'displayName'),
-        isPlaying: rate === null ? false : rate > 0
+        isPlaying: rate === null ? false : rate > 0,
+        duration: num('kMRMediaRemoteNowPlayingInfoDuration'),
+        elapsed: num('kMRMediaRemoteNowPlayingInfoElapsedTime'),
+        positionTimestamp: timestamp('kMRMediaRemoteNowPlayingInfoTimestamp', info)
       };
     }
 

@@ -20,8 +20,8 @@ struct NotchGeometry: Equatable {
     static let expandedIslandCornerRadius: CGFloat = 32
     static let collapsedNotchCornerRadius: CGFloat = 11
     static let expandedNotchCornerRadius: CGFloat = 26
-    static let compactExpandedWidth: CGFloat = 392
-    static let compactExpandedHeight: CGFloat = 88
+    static let expandedWidth: CGFloat = 480
+    static let expandedHeight: CGFloat = 168
 
     var collapsedSize: CGSize { collapsedFrame.size }
 
@@ -35,6 +35,21 @@ struct NotchGeometry: Equatable {
         let span = end - start
         guard span > 0.5 else { return visualSize.height >= end - 0.5 ? 1 : 0 }
         return min(1, max(0, (visualSize.height - start) / span))
+    }
+
+    /// Horizontal padding that keeps a full-width row inside the filled shape.
+    /// The notch body is narrower than its bounding box by the ear radius, and
+    /// the bottom corners pull in further.
+    func contentSideInset(progress: CGFloat) -> CGFloat {
+        let radii = cornerRadii(progress: progress)
+        switch layoutStyle {
+        case .notch:
+            // Side wall plus enough of the bottom corner that the progress row
+            // stays inside the filled path.
+            return radii.ear + radii.bottom * 0.55 + 8
+        case .island:
+            return max(22, radii.bottom * 0.85)
+        }
     }
 
     /// Corner radii follow morph progress so fill and clip share one clock.
@@ -207,8 +222,8 @@ struct NotchGeometry: Equatable {
         collapsedWidth: CGFloat
     ) -> CGSize {
         CGSize(
-            width: min(screen.frame.width * 0.55, max(collapsedWidth + 16, compactExpandedWidth)),
-            height: compactExpandedHeight
+            width: min(screen.frame.width * 0.62, max(collapsedWidth + 16, expandedWidth)),
+            height: expandedHeight
         )
     }
 

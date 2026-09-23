@@ -8,6 +8,12 @@ struct NowPlayingItem: Equatable, Sendable {
     var bundleIdentifier: String?
     var appName: String?
     var isPlaying: Bool
+    /// Track length in seconds. Zero when MediaRemote has no duration.
+    var duration: TimeInterval
+    /// Playback position, in seconds, at `positionDate`.
+    var elapsed: TimeInterval
+    /// When `elapsed` was sampled. While playing, the bar advances from this instant.
+    var positionDate: Date
 
     var displayTitle: String {
         Self.cleanedTitle(title)
@@ -24,6 +30,18 @@ struct NowPlayingItem: Equatable, Sendable {
 
     var artworkKey: String {
         "\(bundleIdentifier ?? "")|\(title)|\(artist)|\(album)"
+    }
+
+    func currentElapsed(at date: Date = .now) -> TimeInterval {
+        let advanced = isPlaying ? date.timeIntervalSince(positionDate) : 0
+        let position = elapsed + max(0, advanced)
+        guard duration > 0 else { return max(0, position) }
+        return min(duration, max(0, position))
+    }
+
+    func currentRemaining(at date: Date = .now) -> TimeInterval {
+        guard duration > 0 else { return 0 }
+        return max(0, duration - currentElapsed(at: date))
     }
 
     var displayLine: String {

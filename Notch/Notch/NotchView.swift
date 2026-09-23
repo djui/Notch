@@ -17,8 +17,14 @@ struct NotchView: View {
         )
     }
 
-    private var expandedContentOpacity: CGFloat {
-        min(1, max(0, (morphProgress - 0.2) / 0.5))
+    /// Player content waits until the notch is tall enough to hold it.
+    private var playerReveal: CGFloat {
+        min(1, max(0, (morphProgress - 0.68) / 0.26))
+    }
+
+    /// Live-activity banners stay put until the player has room to replace them.
+    private var nowPlayingStageOpacity: CGFloat {
+        liveActivity.current == nil ? 1 : playerReveal
     }
 
     var body: some View {
@@ -42,25 +48,24 @@ struct NotchView: View {
     }
 
     private var visualNotch: some View {
-        ZStack(alignment: .top) {
+        ZStack {
             shape.fill(Color.black)
-            if morphProgress < 0.8 {
-                collapsedBody
-                    .opacity(max(0, 1 - morphProgress * 2))
+            ZStack {
+                if let activity = liveActivity.current {
+                    LiveActivityView(activity: activity)
+                        .opacity(1 - nowPlayingStageOpacity)
+                        .allowsHitTesting(false)
+                }
+                NowPlayingStageView(
+                    playerReveal: playerReveal,
+                    sideInset: host.geometry.contentSideInset(progress: morphProgress)
+                )
+                    .opacity(nowPlayingStageOpacity)
             }
-            if host.isExpanded || morphProgress > 0.05 {
-                expandedBody
-                    .padding(.top, 8)
-                    .frame(
-                        width: host.geometry.expandedSize.width,
-                        height: host.geometry.expandedSize.height,
-                        alignment: .top
-                    )
-                    .opacity(expandedContentOpacity)
-                    .allowsHitTesting(host.isExpanded && morphProgress > 0.9)
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .animation(.easeInOut(duration: 0.32), value: collapsedSceneID)
         }
-        .frame(width: host.visualSize.width, height: host.visualSize.height, alignment: .top)
+        .frame(width: host.visualSize.width, height: host.visualSize.height)
         .clipShape(shape)
         .contentShape(Rectangle())
         .onHover { hovering in
@@ -88,20 +93,4 @@ struct NotchView: View {
         }
     }
 
-    private var collapsedBody: some View {
-        ZStack {
-            if let activity = liveActivity.current {
-                LiveActivityView(activity: activity)
-                    .transition(.opacity)
-            } else {
-                NowPlayingCollapsedView()
-                    .transition(.opacity)
-            }
-        }
-        .animation(.easeInOut(duration: 0.32), value: collapsedSceneID)
-    }
-
-    private var expandedBody: some View {
-        NowPlayingBarView()
-    }
 }

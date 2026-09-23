@@ -1,53 +1,76 @@
 import AppKit
 import SwiftUI
 
-struct NowPlayingCollapsedView: View {
-    @Environment(NowPlayingMonitor.self) private var nowPlaying
-    @Environment(AppSettings.self) private var settings
+/// One now-playing layout fitted to the notch. The compact line stays visible
+/// and centered while the shape grows; the player fades in once there is room.
+struct NowPlayingStageView: View {
+    var playerReveal: CGFloat
+    var sideInset: CGFloat
 
-    var body: some View {
-        if settings.showNowPlaying, let item = nowPlaying.item {
-            HStack(spacing: 6) {
-                NowPlayingArtworkView(size: 15, showsAppBadge: false)
-                Text(item.displayLine)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.white.opacity(item.isPlaying ? 0.92 : 0.62))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                if item.isPlaying {
-                    EqualizerView(isPlaying: true, height: 11)
-                }
-            }
-            .padding(.horizontal, 16)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .allowsHitTesting(false)
-            .animation(.easeOut(duration: 0.18), value: item.displayLine)
-        }
-    }
-}
-
-struct NowPlayingBarView: View {
     @Environment(NowPlayingMonitor.self) private var nowPlaying
     @Environment(AppSettings.self) private var settings
     @Environment(NotchHost.self) private var host
 
     var body: some View {
         if settings.showNowPlaying, let item = nowPlaying.item {
-            HStack(spacing: 10) {
-                NowPlayingArtworkView(size: 34, showsAppBadge: true)
+            ZStack {
+                compactLine(item)
+                    .opacity(compactOpacity)
+                player(item)
+                    .opacity(playerReveal)
+                    .allowsHitTesting(host.isExpanded && playerReveal > 0.9)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .animation(.easeOut(duration: 0.18), value: item.displayLine)
+        }
+    }
+
+    private var compactOpacity: CGFloat {
+        playerReveal <= 0 ? 1 : max(0, 1 - playerReveal / 0.45)
+    }
+
+    private func compactLine(_ item: NowPlayingItem) -> some View {
+        HStack(spacing: 6) {
+            NowPlayingArtworkView(size: 15, showsAppBadge: false)
+                .layoutPriority(1)
+            Text(item.displayLine)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white.opacity(item.isPlaying ? 0.92 : 0.62))
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+            if item.isPlaying {
+                EqualizerView(isPlaying: true, height: 11)
+                    .layoutPriority(1)
+            }
+        }
+        .padding(.horizontal, compactInset)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .allowsHitTesting(false)
+    }
+
+    /// The collapsed chin curves into the row. Keep the icon and label
+    /// further inside than the expanded player's side wall.
+    private var compactInset: CGFloat {
+        max(36, sideInset)
+    }
+
+    private func player(_ item: NowPlayingItem) -> some View {
+        VStack(spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
+                NowPlayingArtworkView(size: 52, showsAppBadge: true)
                 Button {
                     host.openNowPlayingSource()
                 } label: {
-                    VStack(alignment: .leading, spacing: 1) {
+                    VStack(alignment: .leading, spacing: 2) {
                         Text(item.displayTitle.isEmpty ? item.displayLine : item.displayTitle)
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.92))
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.94))
                             .lineLimit(1)
                         if !item.artist.isEmpty {
                             Text(item.artist)
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.45))
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.5))
                                 .lineLimit(1)
                         }
                     }
@@ -59,22 +82,69 @@ struct NowPlayingBarView: View {
                 .help(sourceHelp(for: item))
 
                 if item.isPlaying {
-                    EqualizerView(isPlaying: true, height: 14)
-                }
-
-                HStack(spacing: 4) {
-                    NowPlayingControlButton(systemName: "backward.fill") {
-                        nowPlaying.skipPrevious()
-                    }
-                    NowPlayingControlButton(systemName: item.isPlaying ? "pause.fill" : "play.fill") {
-                        nowPlaying.togglePlayPause()
-                    }
-                    NowPlayingControlButton(systemName: "forward.fill") {
-                        nowPlaying.skipNext()
-                    }
+                    EqualizerView(isPlaying: true, height: 16)
                 }
             }
-            .padding(.horizontal, 8)
+
+            if item.duration > 1 {
+                progress(item)
+            }
+
+            HStack(spacing: 28) {
+                NowPlayingControlButton(systemName: "backward.fill", pointSize: 18) {
+                    nowPlaying.skipPrevious()
+                }
+                NowPlayingControlButton(
+                    systemName: item.isPlaying ? "pause.fill" : "play.fill",
+                    pointSize: 24
+                ) {
+                    nowPlaying.togglePlayPause()
+                }
+                NowPlayingControlButton(systemName: "forward.fill", pointSize: 18) {
+                    nowPlaying.skipNext()
+                }
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .padding(.horizontal, sideInset)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private func progress(_ item: NowPlayingItem) -> some View {
+        if item.isPlaying {
+            TimelineView(.periodic(from: .now, by: 0.25)) { context in
+                progressBar(item, at: context.date)
+            }
+        } else {
+            progressBar(item, at: item.positionDate)
+        }
+    }
+
+    private func progressBar(_ item: NowPlayingItem, at date: Date) -> some View {
+        let elapsed = item.currentElapsed(at: date)
+        let remaining = item.currentRemaining(at: date)
+        let fraction = item.duration > 0 ? min(1, max(0, elapsed / item.duration)) : 0
+        return VStack(spacing: 5) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule(style: .continuous)
+                        .fill(Color.white.opacity(0.22))
+                    Capsule(style: .continuous)
+                        .fill(Color.white.opacity(0.92))
+                        .frame(width: max(4, geo.size.width * fraction))
+                }
+            }
+            .frame(height: 4)
+            HStack {
+                Text(Self.clock(elapsed))
+                Spacer(minLength: 8)
+                Text("-\(Self.clock(remaining))")
+            }
+            .font(.system(size: 11, weight: .medium, design: .rounded))
+            .monospacedDigit()
+            .foregroundStyle(.white.opacity(0.55))
         }
     }
 
@@ -82,6 +152,17 @@ struct NowPlayingBarView: View {
         let name = item.appName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if name.isEmpty { return "Show playing app" }
         return "Show in \(name)"
+    }
+
+    private static func clock(_ seconds: TimeInterval) -> String {
+        let total = max(0, Int(seconds.rounded()))
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        let secs = total % 60
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, secs)
+        }
+        return String(format: "%d:%02d", minutes, secs)
     }
 }
 
@@ -137,14 +218,15 @@ private struct NowPlayingArtworkView: View {
 
 private struct NowPlayingControlButton: View {
     let systemName: String
+    var pointSize: CGFloat = 18
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.8))
-                .frame(width: 26, height: 26)
+                .font(.system(size: pointSize, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.92))
+                .frame(width: 44, height: 36)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

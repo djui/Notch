@@ -47,6 +47,9 @@ final class LiveActivityCenter {
     private var lastFocusTint = "systemIndigoColor"
     private var lastFocusSecondaryTint: String?
     private var started = false
+    private var batteryStarted = false
+    private var focusStarted = false
+    private var armingBattery = false
 
     func start() {
         guard !started else { return }
@@ -57,10 +60,7 @@ final class LiveActivityCenter {
         focus.onChange = { [weak self] snapshot in
             self?.handleFocus(snapshot)
         }
-        battery.start()
-        focus.start()
-        lastCharging = battery.snapshot.isCharging
-        lastLowPower = battery.snapshot.isLowPowerMode
+        applyPreferences()
         lastFocusOn = focus.snapshot.isOn
         lastFocusSymbol = focus.snapshot.symbolName
         lastFocusName = focus.snapshot.name
@@ -80,6 +80,48 @@ final class LiveActivityCenter {
         current = nil
         battery.stop()
         focus.stop()
+        batteryStarted = false
+        focusStarted = false
+    }
+
+    func applyPreferences() {
+        guard started else { return }
+        let settings = AppModel.shared.settings
+        if settings.showBattery {
+            if !batteryStarted {
+                armingBattery = true
+                battery.start()
+                armingBattery = false
+                batteryStarted = true
+                lastCharging = battery.snapshot.isCharging
+                lastLowPower = battery.snapshot.isLowPowerMode
+            }
+        } else if batteryStarted {
+            battery.stop()
+            batteryStarted = false
+            dismissBattery()
+        }
+
+        if settings.showFocus {
+            if !focusStarted {
+                focus.start()
+                focusStarted = true
+                lastFocusOn = focus.snapshot.isOn
+                lastFocusSymbol = focus.snapshot.symbolName
+                lastFocusName = focus.snapshot.name
+                lastFocusModeID = focus.snapshot.modeIdentifier
+                lastFocusTint = focus.snapshot.tintColorName
+                lastFocusSecondaryTint = focus.snapshot.secondaryTintColorName
+            }
+        } else if focusStarted {
+            pendingFocusOff?.cancel()
+            pendingFocusOff = nil
+            pendingFocusOn?.cancel()
+            pendingFocusOn = nil
+            focus.stop()
+            focusStarted = false
+            dismissFocus()
+        }
     }
 
     func present(_ activity: LiveActivityKind, duration: TimeInterval = 4) {
@@ -98,6 +140,11 @@ final class LiveActivityCenter {
     }
 
     private func handleBattery(_ snapshot: BatterySnapshot) {
+        if armingBattery || !AppModel.shared.settings.showBattery {
+            lastCharging = snapshot.isCharging
+            lastLowPower = snapshot.isLowPowerMode
+            return
+        }
         if snapshot.isCharging, !lastCharging {
             present(.charging(percent: snapshot.percent))
         } else if snapshot.isLowPowerMode, !lastLowPower {
@@ -111,7 +158,33 @@ final class LiveActivityCenter {
         lastLowPower = snapshot.isLowPowerMode
     }
 
+    private func dismissBattery() {
+        switch current {
+        case .charging, .lowPower:
+            withAnimation(.easeInOut(duration: 0.32)) {
+                current = nil
+            }
+            dismissItem?.cancel()
+            dismissItem = nil
+        default:
+            break
+        }
+    }
+
+    private func dismissFocus() {
+        if case .focus = current {
+            withAnimation(.easeInOut(duration: 0.32)) {
+                current = nil
+            }
+            dismissItem?.cancel()
+            dismissItem = nil
+        }
+        lastFocusOn = false
+        lastFocusModeID = nil
+    }
+
     private func handleFocus(_ snapshot: FocusSnapshot) {
+        guard AppModel.shared.settings.showFocus else { return }
         if snapshot.isOn {
             pendingFocusOff?.cancel()
             pendingFocusOff = nil

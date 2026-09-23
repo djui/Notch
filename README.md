@@ -24,7 +24,7 @@ Then open the app normally. First launch walks through permissions and enables l
 
 - **Layouts.** Switch between Notch and Dynamic Island from Settings, the overlay, or the menu bar.
 - **Now Playing.** Title, artist, artwork, and playback controls in the collapsed and expanded notch. Click the expanded title to open the source app, window, or browser tab.
-- **Live activities.** Charging, Low Power Mode, and Focus appear in the collapsed notch.
+- **Live activities.** Charging, Low Power Mode, and Focus appear in the collapsed notch. Each can be turned off in Settings.
 - **Open.** Hover or click the notch. Hover can be turned off in Settings.
 - **Hides by default** in fullscreen, Mission Control, games, and screen capture. That can be overridden in Settings.
 

@@ -4,6 +4,7 @@ import SwiftUI
 private enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
     case app
     case media
+    case liveActivities
     case permissions
     case about
 
@@ -13,6 +14,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .app: "App"
         case .media: "Media Playback"
+        case .liveActivities: "Live Activities"
         case .permissions: "Permissions"
         case .about: "About"
         }
@@ -22,6 +24,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .app: "gearshape"
         case .media: "play.circle"
+        case .liveActivities: "bolt.circle"
         case .permissions: "hand.raised"
         case .about: "info.circle"
         }
@@ -60,6 +63,8 @@ private struct SettingsDetailView: View {
             AppSettingsPane()
         case .media:
             MediaPlaybackSettingsPane()
+        case .liveActivities:
+            LiveActivitiesSettingsPane()
         case .permissions:
             PermissionsSettingsPane()
         case .about:
@@ -120,39 +125,29 @@ private struct MediaPlaybackSettingsPane: View {
     }
 }
 
+private struct LiveActivitiesSettingsPane: View {
+    @Environment(AppSettings.self) private var settings
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Show charging in notch", isOn: Bindable(settings).showBattery)
+                Text("Includes Low Power Mode.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Toggle("Show Focus in notch", isOn: Bindable(settings).showFocus)
+            }
+        }
+        .formStyle(.grouped)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+}
+
 private struct PermissionsSettingsPane: View {
     @State private var center = PermissionCenter()
 
     var body: some View {
         Form {
-            Section("Paste") {
-                permissionStatusRow(
-                    title: "Accessibility",
-                    detail: "Required to bring the playing app forward.",
-                    state: center.accessibilityTrusted ? .granted : .denied
-                )
-                if !center.accessibilityTrusted {
-                    Text("macOS grants Accessibility per app copy. Xcode Debug and a released Notch.app are different binaries. Enable the entry that matches this build, then relaunch.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(Bundle.main.bundlePath)
-                        .font(.caption.monospaced())
-                        .foregroundStyle(.tertiary)
-                        .textSelection(.enabled)
-                    HStack {
-                        Button("Request Access") {
-                            center.requestAccessibility()
-                        }
-                        Button("Open System Settings") {
-                            PermissionStatus.openAccessibilitySettings()
-                        }
-                        Button("Relaunch Notch") {
-                            NSApp.relaunch()
-                        }
-                    }
-                }
-            }
-
             Section("Focus") {
                 permissionStatusRow(
                     title: "Full Disk Access",
@@ -190,12 +185,6 @@ private struct PermissionsSettingsPane: View {
         .onAppear { center.refresh() }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             center.refresh()
-        }
-        .task {
-            while !Task.isCancelled {
-                center.refreshAccessibility()
-                try? await Task.sleep(for: .seconds(1))
-            }
         }
     }
 
