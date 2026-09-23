@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-23
+
+- Restack Now Playing into an iOS-style player that stays inside the notch.
+- Move clipboard history out of Notch and drop the open shortcut.
+
+
 ## [1.0.1] - 2026-09-15
 
 ### Fixed
@@ -56,6 +62,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Expand and collapse stay anchored to the top center
 - Reopen a hidden or windowless player when clicking the Now Playing title
 
-[Unreleased]: https://github.com/djui/Notch/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/djui/Notch/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/djui/Notch/releases/tag/v1.1.0
 [1.0.1]: https://github.com/djui/Notch/releases/tag/v1.0.1
 [1.0]: https://github.com/djui/Notch/releases/tag/v1.0
