@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [1.1.3] - 2026-09-24
+
+- Play hover haptics even when Notch is not the frontmost app.
+
+
 ## [1.1.2] - 2026-09-24
 
 - Give haptic feedback when hovering into and out of the notch.
@@ -72,7 +77,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Expand and collapse stay anchored to the top center
 - Reopen a hidden or windowless player when clicking the Now Playing title
 
-[Unreleased]: https://github.com/djui/Notch/compare/v1.1.2...HEAD
+[Unreleased]: https://github.com/djui/Notch/compare/v1.1.3...HEAD
+[1.1.3]: https://github.com/djui/Notch/releases/tag/v1.1.3
 [1.1.2]: https://github.com/djui/Notch/releases/tag/v1.1.2
 [1.1.1]: https://github.com/djui/Notch/releases/tag/v1.1.1
 [1.1.0]: https://github.com/djui/Notch/releases/tag/v1.1.0
