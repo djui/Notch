@@ -240,7 +240,7 @@ final class NotchHost {
     }
 
     private func performHoverHaptic() {
-        NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
+        Haptics.shared.tap()
     }
 
     private func hoverFrameContainsMouse() -> Bool {
