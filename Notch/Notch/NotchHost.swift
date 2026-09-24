@@ -212,6 +212,7 @@ final class NotchHost {
     }
 
     func mouseEntered() {
+        if !isMouseInHoverTarget { performHoverHaptic() }
         isMouseInHoverTarget = true
         cancelCollapse()
         guard !suppressHoverExpand else { return }
@@ -230,11 +231,16 @@ final class NotchHost {
             isMouseInHoverTarget = true
             return
         }
+        if isMouseInHoverTarget { performHoverHaptic() }
         isMouseInHoverTarget = false
         suppressHoverExpand = false
         applyHoverPeek(false)
         guard isExpanded, !isPinned else { return }
         scheduleCollapse()
+    }
+
+    private func performHoverHaptic() {
+        NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
     }
 
     private func hoverFrameContainsMouse() -> Bool {
