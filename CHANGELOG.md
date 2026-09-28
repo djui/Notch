@@ -18,6 +18,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Show Claude Code, Cursor, and Codex in the notch when they need permission, ask a question, finish, or fail, with sounds and a list of recent sessions in the expanded notch. Install the hooks from Settings → Coding Agents.
 - Click a coding-agent session to jump to its iTerm2 or Terminal tab, or to the editor window for its project.
 - Show "Nothing playing" instead of an empty expanded notch.
+- Put the reply field where the detail line goes, and ask for Automation even when the target app is closed.
+- Always show the result of a `notch` command.
+- Scroll through all coding-agent sessions in the expanded notch.
+- Add a landing page at djui.github.io/notch.
 
 ## [1.1.3] - 2026-09-24
 

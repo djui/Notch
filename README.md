@@ -8,7 +8,7 @@ Requires **macOS 15** or later. Website: [djui.github.io/notch](https://djui.git
 
 ## Install
 
-1. Download `Notch-1.0.zip` from the [latest release](https://github.com/djui/notch/releases/latest).
+1. Download `Notch-1.2.0.zip` from the [latest release](https://github.com/djui/notch/releases/latest).
 2. Unzip and move `Notch.app` to `/Applications`.
 3. Open the app.
 
@@ -25,7 +25,7 @@ Then open the app normally. First launch walks through permissions and enables l
 - **Layouts.** Switch between Notch and Dynamic Island from Settings, the overlay, or the menu bar.
 - **Now Playing.** Title, artist, artwork, and playback controls in the collapsed and expanded notch. Click the expanded title to open the source app, window, or browser tab.
 - **Live activities.** Charging, Low Power Mode, and Focus appear in the collapsed notch. Each can be turned off in Settings.
-- **Coding agents.** Claude Code, Cursor, and Codex appear in the notch when they need permission, ask a question, finish, or fail, with a running timer while they work. The expanded notch lists recent sessions; click one to jump to its terminal tab or editor window, reply to a question in iTerm2 or Terminal, or allow and deny permission prompts.
+- **Coding agents.** Claude Code, Cursor, and Codex appear in the notch when they need permission, ask a question, finish, or fail, with a running timer while they work. The expanded notch lists every recent session in a scrolling inbox; click one to jump to its terminal tab or editor window, reply to a question in iTerm2 or Terminal, or allow and deny permission prompts.
 - **More live activities.** Microphone and camera turning on, headphones connecting with battery, volume and brightness, and a countdown to your next meeting with a Join button. Meetings and volume are off by default.
 - **Shelf.** Drag files onto the notch to keep them at hand, drag them out again, or AirDrop them.
 - **Notches with a camera.** On MacBooks with a camera housing, collapsed content sits to the left and right of it, like the iPhone's Dynamic Island.
