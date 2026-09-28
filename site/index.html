@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Notch — Put the notch to work</title>
+  <meta name="description" content="A free, open-source macOS app that turns your MacBook's notch into a Dynamic Island–style tray for music, live activities, and the coding agents waiting on you.">
+  <meta name="theme-color" content="#060608">
+  <meta property="og:title" content="Notch — Put the notch to work">
+  <meta property="og:description" content="Now Playing, live activities, and Claude Code, Cursor, and Codex — right in your MacBook's notch.">
+  <meta property="og:image" content="assets/icon.png">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+    <symbol id="i-github" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.73.5.5 5.73.5 12c0 5.08 3.29 9.38 7.86 10.9.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.76 2.69 1.25 3.35.96.1-.75.4-1.25.73-1.54-2.56-.29-5.25-1.28-5.25-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.47.11-3.06 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.77.11 3.06.74.81 1.19 1.84 1.19 3.1 0 4.43-2.7 5.4-5.27 5.69.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5z"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6 5.6 18.4"/></symbol>
+    <symbol id="i-cursor" viewBox="0 0 24 24" fill="currentColor"><path d="M4 3l16 7.2-6.9 2-2.9 7.3z"/></symbol>
+    <symbol id="i-codex" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4c-2 0-3 1-3 3v2.5c0 1-.7 2-2 2.5 1.3.5 2 1.5 2 2.5V17c0 2 1 3 3 3M16 4c2 0 3 1 3 3v2.5c0 1 .7 2 2 2.5-1.3.5-2 1.5-2 2.5V17c0 2-1 3-3 3"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 2 4 13.5h7L10 22l9.5-11.5h-7z"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24" fill="currentColor"><path d="M12.3 2.5a8 8 0 1 0 9.2 9.9A7 7 0 0 1 12.3 2.5z"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24" fill="currentColor"><rect x="5.5" y="4" width="4.5" height="16" rx="1.2"/><rect x="14" y="4" width="4.5" height="16" rx="1.2"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24" fill="currentColor"><path d="M2.5 6.2v11.6a.8.8 0 0 0 1.2.7l9.3-5.8a.8.8 0 0 0 0-1.4L3.7 5.5a.8.8 0 0 0-1.2.7zM11.5 6.2v11.6a.8.8 0 0 0 1.2.7l9.3-5.8a.8.8 0 0 0 0-1.4l-9.3-5.8a.8.8 0 0 0-1.2.7z"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3" fill="currentColor"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></symbol>
+    <symbol id="i-headphones" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></symbol>
+    <symbol id="i-volume" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-leaf" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 2 2 4.2 2 8 0 5.5-4.8 10-10 10Z"/><path d="M2 21c0-3 1.9-5.4 5.2-6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-terminal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 17 6-6-6-6M12 19h8"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+    <symbol id="i-game" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 11h4M8 9v4M15 12h.01M18 10h.01"/><path d="M17.3 5H6.7a4 4 0 0 0-4 3.6L2 15a3 3 0 0 0 5.3 2L9 15h6l1.7 2a3 3 0 0 0 5.3-2l-.7-6.4a4 4 0 0 0-4-3.6z"/></symbol>
+    <symbol id="i-record" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></symbol>
+    <symbol id="i-airdrop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6.3 17.7a8 8 0 1 1 11.4 0"/><path d="M9.2 14.8a4 4 0 1 1 5.6 0"/><circle cx="12" cy="12" r="1" fill="currentColor"/><path d="m12 16-3 6h6z" fill="currentColor" stroke="none"/></symbol>
+  </defs>
+</svg>
+
+<div class="bg-grain" aria-hidden="true"></div>
+
+<header class="nav">
+  <a class="brand" href="#top" aria-label="Notch home">
+    <img src="assets/icon.png" alt="" width="28" height="28">
+    <span>Notch</span>
+  </a>
+  <nav class="nav-links" aria-label="Sections">
+    <a href="#features">Features</a>
+    <a href="#agents">Agents</a>
+    <a href="#install">Install</a>
+  </nav>
+  <a class="btn btn-sm btn-glass" href="https://github.com/djui/Notch">
+    <svg class="ic"><use href="#i-github"/></svg><span>GitHub</span>
+  </a>
+</header>
+
+<main id="top">
+
+  <!-- HERO -->
+  <section class="hero">
+    <a class="pill-link reveal" href="#agents">
+      <span class="pill-dot"></span>
+      <span>New: Claude Code, Cursor &amp; Codex</span>
+      <span class="arrow">→</span>
+    </a>
+    <h1 class="reveal">Put the notch<br><span class="grad">to work.</span></h1>
+    <p class="lede reveal">Notch turns the camera cutout on your MacBook into a Dynamic Island–style tray for music, live activities, and the coding agents waiting on&nbsp;you.</p>
+    <div class="cta reveal">
+      <a class="btn btn-primary" data-download href="https://github.com/djui/Notch/releases/latest">
+        <svg class="ic"><use href="#i-download"/></svg><span>Download for macOS</span>
+      </a>
+      <a class="btn btn-glass" href="https://github.com/djui/Notch">
+        <svg class="ic"><use href="#i-github"/></svg><span>View source</span>
+      </a>
+    </div>
+    <p class="meta reveal"><span data-version>Latest release</span> · macOS 15 or later · Free &amp; open source</p>
+
+    <div class="stage reveal">
+      <div class="stage-glow" aria-hidden="true"></div>
+      <div class="laptop">
+        <div class="lid">
+          <div class="screen" id="screen">
+            <div class="wall" aria-hidden="true"></div>
+
+            <div class="menubar" aria-hidden="true">
+              <div class="mb-left"><b>Terminal</b><span>Shell</span><span>Edit</span><span>View</span><span>Window</span><span>Help</span></div>
+              <div class="mb-right">
+                <svg class="mb-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M2 8.8a15 15 0 0 1 20 0M5 12.9a10 10 0 0 1 14 0M8.5 16.4a5 5 0 0 1 7 0"/><circle cx="12" cy="20" r="1" fill="currentColor"/></svg>
+                <svg class="mb-ic mb-batt" viewBox="0 0 30 14" fill="none"><rect x="1" y="1" width="24" height="12" rx="3.5" stroke="currentColor" stroke-opacity=".5" stroke-width="1.4"/><rect x="3" y="3" width="17" height="8" rx="1.8" fill="currentColor"/><path d="M27 5v4" stroke="currentColor" stroke-opacity=".5" stroke-width="1.6" stroke-linecap="round"/></svg>
+                <span id="clock">Mon Sep 28&nbsp;&nbsp;9:41</span>
+              </div>
+            </div>
+
+            <div class="win win-term" aria-hidden="true">
+              <div class="win-bar"><i></i><i></i><i></i><span>~/dev/notch — claude</span></div>
+              <div class="win-body mono">
+                <p><span class="t-dim">~/dev/notch</span> <span class="t-green">❯</span> claude</p>
+                <p class="t-claude">✻ Welcome back!</p>
+                <p><span class="t-dim">&gt;</span> run the tests and fix anything that fails</p>
+                <p><span class="t-claude">⏺</span> Bash(swift test)</p>
+                <p class="t-dim">&nbsp;&nbsp;⎿ Waiting for permission…</p>
+                <p class="t-amber">&nbsp;&nbsp;Do you want to proceed?</p>
+                <p><span class="t-dim">&nbsp;&nbsp;❯ 1. Yes&nbsp;&nbsp;2. No</span><span class="caret"></span></p>
+              </div>
+            </div>
+
+            <div class="win win-editor" aria-hidden="true">
+              <div class="win-bar"><i></i><i></i><i></i><span>NotchView.swift</span></div>
+              <div class="win-body code-lines">
+                <p><b style="--w:18%;--c:#ff7ab2"></b><b style="--w:30%;--c:#dabaff"></b></p>
+                <p class="in"><b style="--w:14%;--c:#ff7ab2"></b><b style="--w:40%;--c:#6bdfff"></b></p>
+                <p class="in2"><b style="--w:34%;--c:#ffa14f"></b><b style="--w:16%;--c:#d9c97c"></b></p>
+                <p class="in2"><b style="--w:22%;--c:#a167e6"></b><b style="--w:28%;--c:#fff3"></b></p>
+                <p class="in"><b style="--w:8%;--c:#fff3"></b></p>
+                <p class="in"><b style="--w:26%;--c:#ff7ab2"></b><b style="--w:20%;--c:#6bdfff"></b></p>
+                <p class="in2"><b style="--w:44%;--c:#7ee787"></b></p>
+                <p class="in"><b style="--w:8%;--c:#fff3"></b></p>
+                <p><b style="--w:6%;--c:#fff3"></b></p>
+              </div>
+            </div>
+
+            <div class="dock" aria-hidden="true">
+              <i style="--a:#5ac8fa;--b:#007aff"></i>
+              <i style="--a:#3a3a3c;--b:#1c1c1e"></i>
+              <i style="--a:#ff6b8b;--b:#fa2d48"></i>
+              <i style="--a:#8ee06a;--b:#28b43c"></i>
+              <i style="--a:#ffd66b;--b:#ff9f0a"></i>
+              <i style="--a:#b39cff;--b:#6e4bd8"></i>
+              <i style="--a:#e5e5ea;--b:#aeaeb2"></i>
+            </div>
+
+            <!-- The notch -->
+            <div class="notch" id="notch" role="img" aria-label="Animated preview of the Notch app">
+              <span class="shoulder l"></span><span class="shoulder r"></span>
+
+              <!-- Now Playing: collapsed -->
+              <div class="n-layer n-split" data-for="music">
+                <div class="n-l"><span class="art art-sm"></span></div>
+                <div class="n-r"><span class="eq"><i></i><i></i><i></i><i></i></span></div>
+              </div>
+              <!-- Now Playing: expanded -->
+              <div class="n-layer" data-for="music-x">
+                <div class="nx" style="--lw:44">
+                  <div class="np-row">
+                    <span class="art art-lg"></span>
+                    <div class="np-meta">
+                      <b>Afterglow</b>
+                      <span>Nova Lane — Night Drive</span>
+                    </div>
+                    <span class="eq eq-lg"><i></i><i></i><i></i><i></i></span>
+                  </div>
+                  <div class="np-bar"><span>1:12</span><div class="track"><div class="fill"></div></div><span>−2:51</span></div>
+                  <div class="np-ctl">
+                    <svg style="transform:scaleX(-1)"><use href="#i-next"/></svg>
+                    <svg class="big"><use href="#i-pause"/></svg>
+                    <svg><use href="#i-next"/></svg>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Agent: collapsed -->
+              <div class="n-layer n-split" data-for="agent">
+                <div class="n-l"><svg class="n-ic c-claude"><use href="#i-spark"/></svg></div>
+                <div class="n-r c-amber pulse"><span class="dot"></span>Allow?</div>
+              </div>
+              <!-- Agent: expanded -->
+              <div class="n-layer" data-for="agent-x">
+                <div class="nx" style="--lw:46">
+                  <div class="ag-head">
+                    <svg class="n-ic c-claude"><use href="#i-spark"/></svg>
+                    <b>Claude Code</b><span class="t-dim">notch</span>
+                    <span class="ag-time c-amber pulse" data-timer="134">2:14</span>
+                  </div>
+                  <div class="ag-q">Wants to run <code>swift test</code></div>
+                  <div class="ag-btns">
+                    <span class="nbtn">Deny</span>
+                    <span class="nbtn nbtn-go">Allow</span>
+                  </div>
+                  <div class="ag-rows">
+                    <div class="ag-row"><svg class="n-ic c-codex"><use href="#i-codex"/></svg><span>Codex</span><span class="t-dim">refactor the hook server</span><span class="ag-state c-blue" data-timer="48">0:48</span></div>
+                    <div class="ag-row"><svg class="n-ic c-cursor"><use href="#i-cursor"/></svg><span>Cursor</span><span class="t-dim">clip</span><span class="ag-state c-green"><svg class="n-ic"><use href="#i-check"/></svg>Done</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Charging -->
+              <div class="n-layer n-split" data-for="charging">
+                <div class="n-l c-green"><svg class="n-ic"><use href="#i-bolt"/></svg></div>
+                <div class="n-r c-green"><span>82%</span><span class="batt"><i></i></span></div>
+              </div>
+
+              <!-- Focus -->
+              <div class="n-layer n-split" data-for="focus">
+                <div class="n-l c-purple"><svg class="n-ic"><use href="#i-moon"/></svg></div>
+                <div class="n-r c-purple">Work</div>
+              </div>
+
+              <!-- Meeting: collapsed -->
+              <div class="n-layer n-split" data-for="meeting">
+                <div class="n-l c-red"><svg class="n-ic"><use href="#i-cal"/></svg></div>
+                <div class="n-r">in 4 min</div>
+              </div>
+              <!-- Meeting: expanded -->
+              <div class="n-layer" data-for="meeting-x">
+                <div class="nx" style="--lw:40">
+                  <div class="mt-row">
+                    <span class="mt-bar"></span>
+                    <div class="mt-meta"><b>Design review</b><span>10:00 – 10:30 · Starts in 4 min</span></div>
+                    <span class="nbtn nbtn-join">Join</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Headphones -->
+              <div class="n-layer n-split" data-for="airpods">
+                <div class="n-l"><svg class="n-ic"><use href="#i-headphones"/></svg></div>
+                <div class="n-r c-green"><span>74%</span><span class="batt batt-74"><i></i></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="base" aria-hidden="true"></div>
+      </div>
+    </div>
+
+    <div class="chips reveal" role="tablist" aria-label="Preview a live activity">
+      <button class="chip" data-scene="music" role="tab"><svg class="ic"><use href="#i-play"/></svg>Now Playing<i class="chip-prog"></i></button>
+      <button class="chip" data-scene="agent" role="tab"><svg class="ic c-claude"><use href="#i-spark"/></svg>Coding agents<i class="chip-prog"></i></button>
+      <button class="chip" data-scene="charging" role="tab"><svg class="ic c-green"><use href="#i-bolt"/></svg>Charging<i class="chip-prog"></i></button>
+      <button class="chip" data-scene="meeting" role="tab"><svg class="ic c-red"><use href="#i-cal"/></svg>Meetings<i class="chip-prog"></i></button>
+      <button class="chip" data-scene="focus" role="tab"><svg class="ic c-purple"><use href="#i-moon"/></svg>Focus<i class="chip-prog"></i></button>
+      <button class="chip" data-scene="airpods" role="tab"><svg class="ic"><use href="#i-headphones"/></svg>Headphones<i class="chip-prog"></i></button>
+    </div>
+    <p class="hint reveal">Hover the notch to open it.</p>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="section" id="features">
+    <div class="section-head reveal">
+      <p class="kicker">Features</p>
+      <h2>Everything at a glance.<br><span class="muted">Nothing in the way.</span></h2>
+    </div>
+
+    <div class="bento">
+      <article class="card card-agents reveal">
+        <div class="card-text">
+          <p class="card-kicker c-claude"><svg class="ic"><use href="#i-spark"/></svg>Coding agents</p>
+          <h3>Your agents tap you on the shoulder.</h3>
+          <p>Claude Code, Cursor, and Codex show up when they need permission, ask a question, finish, or fail. Allow or deny right from the notch, type a reply, or jump straight to the terminal tab.</p>
+        </div>
+        <div class="viz viz-agents">
+          <div class="glass-notch">
+            <div class="gn-row gn-hot">
+              <svg class="n-ic c-claude"><use href="#i-spark"/></svg>
+              <div class="gn-meta"><b>Claude Code · api</b><span>Wants to edit <code>Sources/Router.swift</code></span></div>
+              <div class="gn-actions"><span class="nbtn">Deny</span><span class="nbtn nbtn-go">Allow</span></div>
+            </div>
+            <div class="gn-row">
+              <svg class="n-ic c-blue"><use href="#i-codex"/></svg>
+              <div class="gn-meta"><b>Codex · web</b><span>Which database should I migrate first?</span></div>
+              <span class="gn-tag c-blue">Question</span>
+            </div>
+            <div class="gn-row">
+              <svg class="n-ic c-claude"><use href="#i-spark"/></svg>
+              <div class="gn-meta"><b>Claude Code · notch</b><span>Running the release build</span></div>
+              <span class="gn-tag t-dim mono" data-timer="312">5:12</span>
+            </div>
+            <div class="gn-row">
+              <svg class="n-ic c-cursor"><use href="#i-cursor"/></svg>
+              <div class="gn-meta"><b>Cursor · clip</b><span>All tests passing</span></div>
+              <span class="gn-tag c-green"><svg class="ic"><use href="#i-check"/></svg>Finished</span>
+            </div>
+            <div class="gn-row">
+              <svg class="n-ic c-claude"><use href="#i-spark"/></svg>
+              <div class="gn-meta"><b>Claude Code · infra</b><span>Rate limit lifts at 14:00</span></div>
+              <span class="gn-tag c-red"><svg class="ic"><use href="#i-x"/></svg>Failed</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card reveal">
+        <div class="viz viz-player">
+          <div class="mini-player">
+            <span class="art art-card"></span>
+            <div class="mp-meta"><b>Afterglow</b><span>Nova Lane</span>
+              <div class="track"><div class="fill"></div></div>
+            </div>
+            <span class="eq eq-card"><i></i><i></i><i></i><i></i></span>
+          </div>
+        </div>
+        <div class="card-text">
+          <p class="card-kicker c-pink"><svg class="ic"><use href="#i-play"/></svg>Now Playing</p>
+          <h3>Your music, one hover away.</h3>
+          <p>Artwork, title, and controls. Click the title to jump to the app, window, or browser tab that's playing.</p>
+        </div>
+      </article>
+
+      <article class="card reveal">
+        <div class="viz viz-pills">
+          <div class="pill-cloud">
+            <span class="lpill c-green"><svg class="ic"><use href="#i-bolt"/></svg>Charging 82%</span>
+            <span class="lpill c-yellow"><svg class="ic"><use href="#i-leaf"/></svg>Low Power</span>
+            <span class="lpill c-purple"><svg class="ic"><use href="#i-moon"/></svg>Work Focus</span>
+            <span class="lpill c-amber"><svg class="ic"><use href="#i-mic"/></svg>Microphone on</span>
+            <span class="lpill"><svg class="ic"><use href="#i-headphones"/></svg>AirPods 74%</span>
+            <span class="lpill"><svg class="ic"><use href="#i-volume"/></svg>Volume</span>
+            <span class="lpill"><svg class="ic"><use href="#i-sun"/></svg>Brightness</span>
+          </div>
+        </div>
+        <div class="card-text">
+          <p class="card-kicker c-green"><svg class="ic"><use href="#i-bolt"/></svg>Live activities</p>
+          <h3>What changed, where you look.</h3>
+          <p>Charging, Low Power, Focus, mic and camera, headphones, volume, and brightness. Turn each one on or off.</p>
+        </div>
+      </article>
+
+      <article class="card reveal">
+        <div class="viz viz-meeting">
+          <div class="meet">
+            <span class="mt-bar"></span>
+            <div class="mt-meta"><b>Design review</b><span>Starts in <em data-countdown="240">4:00</em></span></div>
+            <span class="nbtn nbtn-join">Join</span>
+          </div>
+        </div>
+        <div class="card-text">
+          <p class="card-kicker c-red"><svg class="ic"><use href="#i-cal"/></svg>Meetings</p>
+          <h3>Never late to the call.</h3>
+          <p>A countdown to your next event, with a Join button for video calls.</p>
+        </div>
+      </article>
+
+      <article class="card reveal">
+        <div class="viz viz-shelf">
+          <div class="shelf">
+            <span class="file" style="--c:#ff453a"><svg><use href="#i-file"/></svg><em>PDF</em></span>
+            <span class="file" style="--c:#0a84ff"><svg><use href="#i-file"/></svg><em>PNG</em></span>
+            <span class="file" style="--c:#30d158"><svg><use href="#i-file"/></svg><em>CSV</em></span>
+            <span class="shelf-drop"><svg class="ic"><use href="#i-airdrop"/></svg></span>
+          </div>
+          <span class="file file-drag" style="--c:#bf5af2"><svg><use href="#i-file"/></svg><em>ZIP</em></span>
+        </div>
+        <div class="card-text">
+          <p class="card-kicker c-blue"><svg class="ic"><use href="#i-file"/></svg>Shelf</p>
+          <h3>A pocket for files.</h3>
+          <p>Drop files on the notch to keep them at hand. Drag them out again, or AirDrop them.</p>
+        </div>
+      </article>
+
+      <article class="card reveal">
+        <div class="viz viz-layouts">
+          <div class="lay">
+            <div class="lay-screen"><span class="lay-notch"></span></div>
+            <small>Notch</small>
+          </div>
+          <div class="lay">
+            <div class="lay-screen"><span class="lay-island"></span></div>
+            <small>Dynamic Island</small>
+          </div>
+        </div>
+        <div class="card-text">
+          <p class="card-kicker"><svg class="ic"><use href="#i-expand"/></svg>Layouts</p>
+          <h3>Notch or island. Your call.</h3>
+          <p>Switch layouts any time. On MacBooks with a camera housing, content sits either side of it.</p>
+        </div>
+      </article>
+
+      <article class="card reveal">
+        <div class="viz viz-hidden">
+          <ul class="hide-list">
+            <li><svg class="ic"><use href="#i-expand"/></svg>Fullscreen<span>Hidden</span></li>
+            <li><svg class="ic"><use href="#i-grid"/></svg>Mission Control<span>Hidden</span></li>
+            <li><svg class="ic"><use href="#i-game"/></svg>Games<span>Hidden</span></li>
+            <li><svg class="ic"><use href="#i-record"/></svg>Screen capture<span>Hidden</span></li>
+          </ul>
+        </div>
+        <div class="card-text">
+          <p class="card-kicker"><svg class="ic"><use href="#i-shield"/></svg>Out of the way</p>
+          <h3>Knows when to disappear.</h3>
+          <p>Hidden in fullscreen, Mission Control, games, and recordings. Override any of it in Settings.</p>
+        </div>
+      </article>
+
+      <article class="card reveal">
+        <div class="viz viz-haptics">
+          <div class="taps">
+            <div class="tap"><span class="tap-dots"><i></i><i></i></span><small>Request</small></div>
+            <div class="tap"><span class="tap-dots"><i></i></span><small>Finished</small></div>
+            <div class="tap"><span class="tap-dots"><i></i><i></i><i></i></span><small>Failed</small></div>
+          </div>
+        </div>
+        <div class="card-text">
+          <p class="card-kicker c-amber"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m2 8 2 2-2 2 2 2-2 2M22 8l-2 2 2 2-2 2 2 2"/><rect x="8" y="5" width="8" height="14" rx="1.5"/></svg>Haptics</p>
+          <h3>Feel the difference.</h3>
+          <p>Distinct trackpad taps for requests, finished tasks, and failures — so you know without looking.</p>
+        </div>
+      </article>
+
+      <article class="card reveal">
+        <div class="viz viz-native">
+          <div class="stats">
+            <div class="stat"><b>Swift</b><small>Native SwiftUI</small></div>
+            <div class="stat"><b>MIT</b><small>Open source</small></div>
+            <div class="stat"><b>0</b><small>Accounts</small></div>
+          </div>
+        </div>
+        <div class="card-text">
+          <p class="card-kicker"><svg class="ic"><use href="#i-lock"/></svg>Native &amp; open</p>
+          <h3>Light, local, yours.</h3>
+          <p>A native Mac app with no account and no analytics. Read every line on GitHub.</p>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- AGENTS -->
+  <section class="section" id="agents">
+    <div class="split">
+      <div class="split-text reveal">
+        <p class="kicker">Coding agents</p>
+        <h2>One click to wire up.<br><span class="muted">Safe by design.</span></h2>
+        <p class="body">Open Settings → Coding Agents and click Install. Notch registers a tiny hook with each agent and keeps your existing hooks exactly as they were.</p>
+
+        <div class="hooks">
+          <div class="hook"><svg class="n-ic c-claude"><use href="#i-spark"/></svg><b>Claude Code</b><code>~/.claude/settings.json</code></div>
+          <div class="hook"><svg class="n-ic c-blue"><use href="#i-codex"/></svg><b>Codex</b><code>~/.codex/hooks.json</code></div>
+          <div class="hook"><svg class="n-ic c-cursor"><use href="#i-cursor"/></svg><b>Cursor</b><code>~/.cursor/hooks.json</code></div>
+        </div>
+
+        <ul class="assurances">
+          <li><svg class="ic"><use href="#i-lock"/></svg><div><b>Never leaves your Mac.</b> Events travel over a Unix socket only your user can open.</div></li>
+          <li><svg class="ic"><use href="#i-shield"/></svg><div><b>Can't block an agent.</b> The hook always exits 0 without output.</div></li>
+          <li><svg class="ic"><use href="#i-undo"/></svg><div><b>Easy to undo.</b> The previous config is kept as a <code>.notch-backup</code>.</div></li>
+        </ul>
+      </div>
+
+      <div class="split-viz reveal">
+        <div class="term">
+          <div class="win-bar"><i></i><i></i><i></i><span>zsh</span></div>
+          <div class="term-body mono">
+            <p><span class="t-green">❯</span> notch run make test</p>
+            <p class="t-dim">swift test --parallel</p>
+            <p class="t-dim">Building for debugging…</p>
+            <p class="t-dim">Test Suite 'All tests' passed.</p>
+            <p class="t-dim">&nbsp;&nbsp;Executed 128 tests, with 0 failures in 41.8s</p>
+            <p><span class="t-green">❯</span> <span class="caret"></span></p>
+          </div>
+          <div class="term-notch">
+            <span class="shoulder l"></span><span class="shoulder r"></span>
+            <div class="tn-l c-green"><svg class="n-ic"><use href="#i-check"/></svg></div>
+            <div class="tn-r">Tests passed</div>
+          </div>
+        </div>
+        <div class="cmds">
+          <code>notch done "Tests passed"</code>
+          <code>notch fail</code>
+          <code>notch ask</code>
+          <code>notch run make test</code>
+        </div>
+        <p class="caption">Anything can talk to the notch. Install the <code>notch</code> command from Settings and use it from any shell or script.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- INSTALL -->
+  <section class="section" id="install">
+    <div class="section-head reveal">
+      <p class="kicker">Install</p>
+      <h2>Up and running in a minute.</h2>
+    </div>
+    <ol class="steps">
+      <li class="step reveal">
+        <span class="step-n">1</span>
+        <h3>Download</h3>
+        <p>Grab the latest <code data-zip>Notch.zip</code> from GitHub Releases.</p>
+        <a class="link" data-download href="https://github.com/djui/Notch/releases/latest">Download <span class="arrow">→</span></a>
+      </li>
+      <li class="step reveal">
+        <span class="step-n">2</span>
+        <h3>Move to Applications</h3>
+        <p>Unzip and drag <code>Notch.app</code> into your <code>/Applications</code> folder.</p>
+      </li>
+      <li class="step reveal">
+        <span class="step-n">3</span>
+        <h3>Open</h3>
+        <p>First launch walks you through permissions and turns on launch at login.</p>
+      </li>
+    </ol>
+    <div class="note reveal">
+      <p>Notch is signed but not notarized. If macOS won't open it, clear the quarantine flag and try again:</p>
+      <div class="copy">
+        <code class="mono" id="xattr">xattr -cr /Applications/Notch.app</code>
+        <button class="copy-btn" data-copy="#xattr" aria-label="Copy command"><svg class="ic"><use href="#i-copy"/></svg><span>Copy</span></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="final reveal">
+    <div class="final-notch" aria-hidden="true">
+      <span class="shoulder l"></span><span class="shoulder r"></span>
+    </div>
+    <img class="final-icon" src="assets/icon.png" alt="" width="96" height="96">
+    <h2>Give your notch<br>something to do.</h2>
+    <div class="cta">
+      <a class="btn btn-primary" data-download href="https://github.com/djui/Notch/releases/latest">
+        <svg class="ic"><use href="#i-download"/></svg><span>Download for macOS</span>
+      </a>
+      <a class="btn btn-glass" href="https://github.com/djui/Notch">
+        <svg class="ic"><use href="#i-github"/></svg><span>Star on GitHub</span>
+      </a>
+    </div>
+    <p class="meta">Looking for clipboard history? It moved to <a href="https://github.com/djui/Clip">Clip</a>.</p>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="brand"><img src="assets/icon.png" alt="" width="20" height="20"><span>Notch</span></div>
+  <nav aria-label="Footer">
+    <a href="https://github.com/djui/Notch">GitHub</a>
+    <a href="https://github.com/djui/Notch/releases">Releases</a>
+    <a href="https://github.com/djui/Notch/blob/main/CHANGELOG.md">Changelog</a>
+    <a href="https://github.com/djui/Notch/blob/main/LICENSE">MIT License</a>
+  </nav>
+</footer>
+
+<script src="main.js" defer></script>
+</body>
+</html>
