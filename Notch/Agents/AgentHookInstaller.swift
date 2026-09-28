@@ -374,7 +374,12 @@ enum AgentHookInstaller {
                 return
             }
             permissions = try? fileManager.attributesOfItem(atPath: target.path)[.posixPermissions]
-            try existing.write(to: target.appendingPathExtension("notch-backup"), options: .atomic)
+            let backup = target.appendingPathExtension("notch-backup")
+            try existing.write(to: backup, options: .atomic)
+            // The backup can hold the same secrets as the original.
+            if let permissions {
+                try? fileManager.setAttributes([.posixPermissions: permissions], ofItemAtPath: backup.path)
+            }
         } else {
             try fileManager.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
         }
