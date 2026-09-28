@@ -4,13 +4,13 @@ import CoreGraphics
 struct NotchGeometry: Equatable {
     var displayID: CGDirectDisplayID
     var screenFrame: CGRect
-    var isArtificial: Bool
     var layoutStyle: NotchLayoutStyle
     var collapsedFrame: CGRect
     var expandedSize: CGSize
-    var earRadius: CGFloat
     /// Height of the camera housing, where the display has no pixels. Zero without a hardware notch.
     var hardwareNotchHeight: CGFloat
+    /// Width of the camera housing. Zero without a hardware notch.
+    var hardwareNotchWidth: CGFloat
 
     static let artificialWidth: CGFloat = 185
     static let hoverPeekWidth: CGFloat = 14
@@ -23,7 +23,11 @@ struct NotchGeometry: Equatable {
     static let collapsedNotchCornerRadius: CGFloat = 11
     static let expandedNotchCornerRadius: CGFloat = 26
     static let expandedWidth: CGFloat = 480
-    static let expandedHeight: CGFloat = 168
+    static let expandedHeight: CGFloat = 190
+    /// Room on each side of the camera housing for collapsed content.
+    static let wingWidth: CGFloat = 84
+    /// Row of stage buttons at the top of the expanded notch.
+    static let stageBarHeight: CGFloat = 24
 
     var collapsedSize: CGSize { collapsedFrame.size }
 
@@ -32,6 +36,12 @@ struct NotchGeometry: Equatable {
 
     /// Expanded content below this offset from the visual top is clear of the camera housing.
     var contentTopInset: CGFloat { max(0, hardwareNotchHeight - topHitPadding) }
+
+    /// Collapsed content has to sit left and right of the camera, which has no pixels.
+    var hasWings: Bool { hardwareNotchWidth > 0 }
+
+    /// The part of the collapsed shape in the middle that nothing can be drawn in.
+    var cameraGap: CGFloat { hardwareNotchWidth }
 
     /// 0 at collapsed height, 1 at expanded height. Peek sits near 0.
     func morphProgress(visualSize: CGSize) -> CGFloat {
@@ -72,13 +82,16 @@ struct NotchGeometry: Equatable {
         }
     }
 
-    func collapsedSize(peeking: Bool) -> CGSize {
-        let base = collapsedSize
-        guard peeking else { return base }
+    func collapsedSize(peeking: Bool, wings: Bool = false) -> CGSize {
+        var size = collapsedSize
+        if wings, hasWings {
+            size.width += Self.wingWidth * 2
+        }
+        guard peeking else { return size }
         let extraHeight = layoutStyle == .island ? 0 : Self.hoverPeekHeight
         return CGSize(
-            width: base.width + Self.hoverPeekWidth,
-            height: base.height + extraHeight
+            width: size.width + Self.hoverPeekWidth,
+            height: size.height + extraHeight
         )
     }
 
@@ -90,19 +103,11 @@ struct NotchGeometry: Equatable {
 
     /// Room for the click-to-open hover grow without moving the window.
     /// Top edge and horizontal center stay on the collapsed notch.
-    func collapsedWindowFrame(hoverPeekReserved: Bool) -> CGRect {
-        windowFrame(for: collapsedSize(peeking: hoverPeekReserved))
+    func collapsedWindowFrame(hoverPeekReserved: Bool, wings: Bool = false) -> CGRect {
+        windowFrame(for: collapsedSize(peeking: hoverPeekReserved, wings: wings))
     }
 
     var expandedPanelFrame: CGRect { expandedWindowFrame }
-
-    func windowFrame(expanded: Bool) -> CGRect {
-        expanded ? expandedWindowFrame : collapsedWindowFrame
-    }
-
-    func panelFrame(expanded: Bool) -> CGRect {
-        expanded ? expandedPanelFrame : collapsedWindowFrame
-    }
 
     /// Size grows from the collapsed notch: visual top and horizontal center stay fixed.
     /// Window height includes `topHitPadding` so the menu-bar gap above an island is clickable.
@@ -191,36 +196,27 @@ struct NotchGeometry: Equatable {
         style: NotchLayoutStyle
     ) -> NotchGeometry {
         let collapsed: CGRect
-        let isArtificial: Bool
-        let earRadius: CGFloat
-        let hardware = hardwareNotchFrame(on: screen)
+        let hardware = hardwareNotchFrame(on: screen) ?? simulatedNotchFrame(on: screen)
         if let real = hardware {
             collapsed = style == .island
                 ? islandFrame(covering: real, on: screen)
                 : notchFrame(covering: real, on: screen)
-            isArtificial = false
-            earRadius = 7
         } else if style == .island {
             collapsed = islandFrameArtificial(on: screen)
-            isArtificial = true
-            earRadius = 6
         } else {
             collapsed = notchFrameArtificial(on: screen)
-            isArtificial = true
-            earRadius = 6
         }
         return NotchGeometry(
             displayID: screen.displayID,
             screenFrame: screen.frame,
-            isArtificial: isArtificial,
             layoutStyle: style,
             collapsedFrame: collapsed,
             expandedSize: expandedSize(
                 for: screen,
                 collapsedWidth: collapsed.width
             ),
-            earRadius: earRadius,
-            hardwareNotchHeight: hardware?.height ?? 0
+            hardwareNotchHeight: hardware?.height ?? 0,
+            hardwareNotchWidth: hardware?.width ?? 0
         )
     }
 
@@ -278,6 +274,16 @@ struct NotchGeometry: Equatable {
         let x = screen.frame.midX - width / 2
         let y = screen.frame.maxY - metrics.topInset - metrics.height
         return CGRect(x: x, y: y, width: width, height: metrics.height)
+    }
+
+    /// `defaults write com.djui.notch simulateHardwareNotch -bool YES` lays Notch out as if
+    /// the built-in display had a camera housing, for working on notch layouts on other Macs.
+    private static func simulatedNotchFrame(on screen: NSScreen) -> CGRect? {
+        guard UserDefaults.standard.bool(forKey: "simulateHardwareNotch"),
+              CGDisplayIsBuiltin(screen.displayID) != 0 || NSScreen.screens.count == 1
+        else { return nil }
+        let height = max(24, screen.menuBarHeight)
+        return CGRect(x: screen.frame.midX - 100, y: screen.frame.maxY - height, width: 200, height: height)
     }
 
     private static func hardwareNotchFrame(on screen: NSScreen) -> CGRect? {

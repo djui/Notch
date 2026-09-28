@@ -30,13 +30,58 @@ final class Haptics {
         actuate = symbol("MTActuatorActuate", as: Actuate.self)
     }
 
+    /// A small vocabulary, so a request for attention feels different from a finished task.
+    enum Pattern {
+        /// Hovering into or out of the notch.
+        case tick
+        /// Something waits on the user: two firm taps.
+        case attention
+        /// A task finished: one soft tap.
+        case done
+        /// A task failed: three quick taps.
+        case failed
+
+        /// MultitouchSupport actuation IDs (1–6, weak to strong) with a delay before each.
+        fileprivate var steps: [(id: Int32, delay: TimeInterval)] {
+            switch self {
+            case .tick: [(6, 0)]
+            case .attention: [(6, 0), (6, 0.12)]
+            case .done: [(3, 0)]
+            case .failed: [(5, 0), (5, 0.09), (5, 0.18)]
+            }
+        }
+
+        fileprivate var fallback: NSHapticFeedbackManager.FeedbackPattern {
+            switch self {
+            case .tick, .done: .alignment
+            case .attention, .failed: .levelChange
+            }
+        }
+    }
+
     func tap() {
+        play(.tick)
+    }
+
+    func play(_ pattern: Pattern) {
+        for step in pattern.steps {
+            if step.delay == 0 {
+                actuate(step.id, fallback: pattern.fallback)
+            } else {
+                DispatchQueue.main.asyncAfter(deadline: .now() + step.delay) { [weak self] in
+                    self?.actuate(step.id, fallback: pattern.fallback)
+                }
+            }
+        }
+    }
+
+    private func actuate(_ id: Int32, fallback: NSHapticFeedbackManager.FeedbackPattern) {
         if actuators == nil { actuators = openActuators() }
         guard let actuate, let actuators, !actuators.isEmpty else {
-            NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
+            NSHapticFeedbackManager.defaultPerformer.perform(fallback, performanceTime: .now)
             return
         }
-        let played = actuators.map { actuate($0, 6, 0, 0, 0) == 0 }
+        let played = actuators.map { actuate($0, id, 0, 0, 0) == 0 }
         // Trackpads come and go (e.g. a Magic Trackpad); rescan on the next tap.
         if played.contains(false) { self.actuators = nil }
     }

@@ -24,6 +24,28 @@ struct AgentSession: Identifiable, Equatable {
     var toolUseID: String?
     /// Opened, dismissed, or its banner timed out. Keeps the banner from coming back.
     var acknowledged = false
+    /// Set from the prompt that started the current turn until the turn ends.
+    var turnStartedAt: Date?
+    var toolCount = 0
+    /// Any event at all, including ones that are never shown.
+    var lastSeen: Date
+    /// When a rate limit lifts.
+    var resetsAt: Date?
+    /// Notch holds the agent's permission request and can answer it.
+    var awaitsDecision = false
+
+    static let runningTimeout: TimeInterval = 30 * 60
+
+    var isRunning: Bool {
+        guard let turnStartedAt else { return false }
+        // A crashed agent never sends Stop; don't count forever.
+        return Date().timeIntervalSince(lastSeen) < Self.runningTimeout && turnStartedAt <= lastSeen
+    }
+
+    /// Replies can be typed straight into iTerm2 sessions and Terminal tabs.
+    var acceptsReplies: Bool {
+        host.itermSessionID != nil || (host.bundleIdentifier == "com.apple.Terminal" && host.tty != nil)
+    }
 
     var headline: String {
         guard let project else { return agent.shortTitle }
@@ -44,6 +66,8 @@ struct AgentLiveActivity: Equatable {
         state = session.state
         isQuestion = session.isQuestion
         switch session.state {
+        case .attention where session.awaitsDecision:
+            label = "Allow?"
         case _ where session.isQuestion:
             label = "Asks you"
         case .attention:
@@ -70,24 +94,40 @@ final class AgentActivityCenter {
     /// Detail that arrives before the event it belongs to, per session.
     @ObservationIgnored private var contexts: [String: AgentEvent] = [:]
     @ObservationIgnored private var started = false
+    /// Permission requests held open by the hook script, per session.
+    @ObservationIgnored private var decisions: [String: @Sendable (Data?) -> Void] = [:]
+    @ObservationIgnored private var resetTimers: [String: DispatchWorkItem] = [:]
 
     static let bannerDuration: TimeInterval = 6
     static let attentionBannerDuration: TimeInterval = 10 * 60
     private static let inboxLifetime: TimeInterval = 2 * 60 * 60
     private static let maxSessions = 24
     private static let testSessionID = "notch-test"
+    /// Shorter than the hook's own timeout, so the terminal prompt still appears afterwards.
+    static let decisionWait: TimeInterval = 25
 
-    /// Newest first, with sessions waiting on the user at the top.
+    /// Waiting on the user first, then running sessions, then the rest by recency.
     var inbox: [AgentSession] {
         let cutoff = Date().addingTimeInterval(-Self.inboxLifetime)
+        let showsRunning = AppModel.shared.settings.agentShowRunning
+        func rank(_ session: AgentSession) -> Int {
+            if session.state == .attention { return 0 }
+            return session.state == .working ? 1 : 2
+        }
         return sessions
-            .filter { $0.state != .working && ($0.updatedAt > cutoff || $0.state == .attention) }
-            .sorted { lhs, rhs in
-                let left = lhs.state == .attention ? 0 : 1
-                let right = rhs.state == .attention ? 0 : 1
-                if left != right { return left < right }
-                return lhs.updatedAt > rhs.updatedAt
+            .filter { session in
+                if session.state == .working { return showsRunning && session.isRunning }
+                return session.updatedAt > cutoff || session.state == .attention
             }
+            .sorted { lhs, rhs in
+                if rank(lhs) != rank(rhs) { return rank(lhs) < rank(rhs) }
+                return max(lhs.updatedAt, lhs.lastSeen) > max(rhs.updatedAt, rhs.lastSeen)
+            }
+    }
+
+    /// The most recently active session that is mid-turn.
+    var runningSession: AgentSession? {
+        sessions.filter(\.isRunning).max { $0.lastSeen < $1.lastSeen }
     }
 
     var needsAttention: Bool {
@@ -141,10 +181,23 @@ final class AgentActivityCenter {
             state: .working,
             title: event.title,
             updatedAt: event.date,
-            host: event.host
+            host: event.host,
+            lastSeen: event.date
         )
         session.host = event.host.merged(over: session.host)
         session.project = event.project ?? session.project
+        session.lastSeen = event.date
+        if event.startsTurn {
+            session.turnStartedAt = event.date
+            session.toolCount = 0
+            session.resetsAt = nil
+        }
+        if event.isToolUse {
+            session.toolCount += 1
+        }
+        if event.endsTurn || event.endsSession {
+            session.turnStartedAt = nil
+        }
 
         switch event.kind {
         case .context:
@@ -213,8 +266,119 @@ final class AgentActivityCenter {
         session.updatedAt = event.date
         session.toolUseID = event.toolUseID
         session.acknowledged = false
+        session.resetsAt = event.resetsAt
         store(session)
         announce(session, quietWhenHostInFront: !isTest)
+        if let resetsAt = event.resetsAt {
+            scheduleResetBanner(for: key, at: resetsAt)
+        }
+    }
+
+    // MARK: - Decisions
+
+    /// A permission request the hook script holds open. Notch asks only while answering from
+    /// the notch is on and the agent's app is in the background; otherwise the agent shows its
+    /// own prompt right away.
+    func decide(_ request: AgentHookRequest, respond: @escaping @Sendable (Data?) -> Void) {
+        let name = request.path.split(separator: "/").last.map(String.init) ?? ""
+        let settings = AppModel.shared.settings
+        guard settings.showAgents,
+              let agent = CodingAgent(rawValue: name),
+              let payload = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any],
+              var event = AgentEvent.parse(agent: agent, payload: payload, host: AgentHost(headers: request.headers))
+        else {
+            respond(nil)
+            return
+        }
+        let frontmost = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        let hostInFront = event.host.bundleIdentifier != nil && event.host.bundleIdentifier == frontmost
+        guard settings.agentApprovals, settings.agentAttention, agent.acceptsDecisions, !hostInFront else {
+            respond(nil)
+            apply(event)
+            return
+        }
+        let key = event.sessionKey
+        decisions.removeValue(forKey: key)?(nil)
+        decisions[key] = respond
+        event.kind = .attention
+        event.title = "Wants permission"
+        apply(event)
+        if let index = sessions.firstIndex(where: { $0.id == key }) {
+            sessions[index].awaitsDecision = true
+            AppModel.shared.liveActivity.present(.agent(AgentLiveActivity(sessions[index])), duration: Self.decisionWait)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.decisionWait) { [weak self] in
+            self?.releaseDecision(for: key)
+        }
+    }
+
+    /// Answers a held permission request from the notch.
+    func answer(_ id: String, allow: Bool) {
+        guard let respond = decisions.removeValue(forKey: id),
+              let index = sessions.firstIndex(where: { $0.id == id })
+        else { return }
+        var decision: [String: Any] = ["behavior": allow ? "allow" : "deny"]
+        if !allow {
+            decision["message"] = "Denied from Notch."
+        }
+        let output: [String: Any] = [
+            "hookSpecificOutput": ["hookEventName": "PermissionRequest", "decision": decision],
+        ]
+        respond(try? JSONSerialization.data(withJSONObject: output))
+        sessions[index].awaitsDecision = false
+        sessions[index].state = .working
+        withdrawBanner(for: id)
+    }
+
+    /// Time is up: the agent shows its own prompt, and the request stays in the inbox.
+    private func releaseDecision(for id: String) {
+        guard let respond = decisions.removeValue(forKey: id) else { return }
+        respond(nil)
+        guard let index = sessions.firstIndex(where: { $0.id == id }) else { return }
+        sessions[index].awaitsDecision = false
+        sessions[index].title = "Needs permission"
+        // The agent's own prompt comes next; keep the command for its notification.
+        let session = sessions[index]
+        if let colon = id.firstIndex(of: ":") {
+            contexts[id] = AgentEvent(
+                agent: session.agent,
+                kind: .context,
+                hookName: "PermissionRequest",
+                sessionID: String(id[id.index(after: colon)...]),
+                title: session.title,
+                detail: session.detail,
+                toolUseID: session.toolUseID
+            )
+        }
+    }
+
+    // MARK: - Rate limits
+
+    private func scheduleResetBanner(for id: String, at date: Date) {
+        resetTimers[id]?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, let index = self.sessions.firstIndex(where: { $0.id == id }),
+                  self.sessions[index].resetsAt == date
+            else { return }
+            self.resetTimers[id] = nil
+            self.sessions[index].state = .info
+            self.sessions[index].title = "Limit reset"
+            self.sessions[index].detail = "You can continue."
+            self.sessions[index].resetsAt = nil
+            self.sessions[index].updatedAt = Date()
+            self.sessions[index].acknowledged = false
+            self.announce(self.sessions[index], quietWhenHostInFront: false)
+        }
+        resetTimers[id] = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + max(0, date.timeIntervalSinceNow), execute: work)
+    }
+
+    // MARK: - Replies
+
+    func reply(_ id: String, text: String) {
+        guard let session = sessions.first(where: { $0.id == id }), !text.isEmpty else { return }
+        acknowledge(id)
+        AgentFocus.reply(text, to: session)
     }
 
     // MARK: - User actions
@@ -226,6 +390,8 @@ final class AgentActivityCenter {
     }
 
     func dismiss(_ id: String) {
+        decisions.removeValue(forKey: id)?(nil)
+        resetTimers.removeValue(forKey: id)?.cancel()
         sessions.removeAll { $0.id == id }
         contexts[id] = nil
         withdrawBanner(for: id)
@@ -233,6 +399,10 @@ final class AgentActivityCenter {
 
     func clearAll() {
         let ids = sessions.map(\.id)
+        for id in ids {
+            decisions.removeValue(forKey: id)?(nil)
+            resetTimers.removeValue(forKey: id)?.cancel()
+        }
         sessions.removeAll()
         contexts.removeAll()
         for id in ids {
@@ -279,8 +449,11 @@ final class AgentActivityCenter {
         if settings.agentSounds, let sound = Self.soundName(for: session.state) {
             NSSound(named: sound)?.play()
         }
-        if session.state == .attention {
-            Haptics.shared.tap()
+        switch session.state {
+        case .attention: Haptics.shared.play(.attention)
+        case .finished: Haptics.shared.play(.done)
+        case .failed: Haptics.shared.play(.failed)
+        case .info, .working: break
         }
     }
 
@@ -357,11 +530,20 @@ final class AgentActivityCenter {
 
     private func startServer() {
         guard server == nil else { return }
-        let server = AgentHookServer(socketPath: AgentHookInstaller.socketURL().path) { [weak self] request in
-            Task { @MainActor in
-                self?.handle(request)
+        let server = AgentHookServer(
+            socketPath: AgentHookInstaller.socketURL().path,
+            handler: { [weak self] request in
+                Task { @MainActor in
+                    self?.handle(request)
+                }
+            },
+            decider: { [weak self] request, respond in
+                Task { @MainActor in
+                    guard let self else { return respond(nil) }
+                    self.decide(request, respond: respond)
+                }
             }
-        }
+        )
         do {
             try server.start()
             self.server = server

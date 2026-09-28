@@ -20,6 +20,14 @@ final class AppSettings {
         static let agentOther = "agentOther"
         static let agentSounds = "agentSounds"
         static let agentQuietWhenFrontmost = "agentQuietWhenFrontmost"
+        static let hoverHaptics = "hoverHaptics"
+        static let agentShowRunning = "agentShowRunning"
+        static let agentApprovals = "agentApprovals"
+        static let showMeetings = "showMeetings"
+        static let showPrivacy = "showPrivacy"
+        static let showLevels = "showLevels"
+        static let showAudioDevices = "showAudioDevices"
+        static let showShelf = "showShelf"
     }
 
     var openOnHover: Bool {
@@ -101,6 +109,58 @@ final class AppSettings {
         didSet { UserDefaults.standard.set(agentQuietWhenFrontmost, forKey: Keys.agentQuietWhenFrontmost) }
     }
 
+    /// Tap the trackpad when the pointer moves into or out of the notch.
+    var hoverHaptics: Bool {
+        didSet { UserDefaults.standard.set(hoverHaptics, forKey: Keys.hoverHaptics) }
+    }
+
+    /// Show a timer in the collapsed notch while an agent works and nothing else is showing.
+    var agentShowRunning: Bool {
+        didSet { UserDefaults.standard.set(agentShowRunning, forKey: Keys.agentShowRunning) }
+    }
+
+    /// Hold permission prompts for up to 25 seconds so they can be answered from the notch while the agent's app is in the background.
+    var agentApprovals: Bool {
+        didSet { UserDefaults.standard.set(agentApprovals, forKey: Keys.agentApprovals) }
+    }
+
+    /// Count down to the next calendar event with a Join button.
+    var showMeetings: Bool {
+        didSet {
+            UserDefaults.standard.set(showMeetings, forKey: Keys.showMeetings)
+            AppModel.shared.liveActivity.applyPreferences()
+        }
+    }
+
+    /// Announce when the microphone or camera turns on.
+    var showPrivacy: Bool {
+        didSet {
+            UserDefaults.standard.set(showPrivacy, forKey: Keys.showPrivacy)
+            AppModel.shared.liveActivity.applyPreferences()
+        }
+    }
+
+    /// Show volume and brightness changes in the notch.
+    var showLevels: Bool {
+        didSet {
+            UserDefaults.standard.set(showLevels, forKey: Keys.showLevels)
+            AppModel.shared.liveActivity.applyPreferences()
+        }
+    }
+
+    /// Announce Bluetooth headphones connecting, with battery levels.
+    var showAudioDevices: Bool {
+        didSet {
+            UserDefaults.standard.set(showAudioDevices, forKey: Keys.showAudioDevices)
+            AppModel.shared.liveActivity.applyPreferences()
+        }
+    }
+
+    /// Hold files dragged onto the notch.
+    var showShelf: Bool {
+        didSet { UserDefaults.standard.set(showShelf, forKey: Keys.showShelf) }
+    }
+
     var launchAtLogin: Bool
 
     var loginItemBlocked: Bool {
@@ -121,6 +181,14 @@ final class AppSettings {
         agentOther = Self.bool(Keys.agentOther, default: false)
         agentSounds = Self.bool(Keys.agentSounds, default: true)
         agentQuietWhenFrontmost = Self.bool(Keys.agentQuietWhenFrontmost, default: true)
+        hoverHaptics = Self.bool(Keys.hoverHaptics, default: true)
+        agentShowRunning = Self.bool(Keys.agentShowRunning, default: true)
+        agentApprovals = Self.bool(Keys.agentApprovals, default: false)
+        showMeetings = Self.bool(Keys.showMeetings, default: false)
+        showPrivacy = Self.bool(Keys.showPrivacy, default: true)
+        showLevels = Self.bool(Keys.showLevels, default: false)
+        showAudioDevices = Self.bool(Keys.showAudioDevices, default: true)
+        showShelf = Self.bool(Keys.showShelf, default: true)
         if let stored = UserDefaults.standard.string(forKey: Keys.layoutStyle),
            let style = NotchLayoutStyle(rawValue: stored) {
             layoutStyle = style

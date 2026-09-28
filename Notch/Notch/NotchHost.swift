@@ -9,21 +9,17 @@ final class NotchHost {
     private(set) var isPinned = false
     private(set) var isHoverPeeking = false
     private(set) var visualSize: CGSize
-    private(set) var modules: [any NotchModule] = []
-    var selectedModuleID: String?
     private(set) var suppressHoverExpand = false
     private(set) var panelFrameIsExpanded = false
     private(set) var layoutGeneration = 0
-
-    var selectedModule: (any NotchModule)? {
-        if let selectedModuleID {
-            return modules.first { $0.id == selectedModuleID } ?? modules.first
-        }
-        return modules.first
-    }
+    /// The collapsed notch is widened to the sides of the camera while it has something to show.
+    private(set) var showsWings = false
+    /// Chosen when the notch expands and by the stage buttons; cleared on collapse.
+    var selectedStage: ExpandedStage?
+    /// Files are being dragged over the notch.
+    private(set) var isDropTargeted = false
 
     private var panel: NotchPanel?
-    private var hostingView: NSView?
     private var collapseWorkItem: DispatchWorkItem?
     private var previousApp: NSRunningApplication?
     private var screenObserver: NSObjectProtocol?
@@ -44,14 +40,6 @@ final class NotchHost {
         visualSize = geometry.collapsedSize
     }
 
-    func install(module: any NotchModule) {
-        if modules.contains(where: { $0.id == module.id }) { return }
-        modules.append(module)
-        if selectedModuleID == nil {
-            selectedModuleID = module.id
-        }
-    }
-
     func start() {
         geometry = currentGeometry()
         visualSize = geometry.collapsedSize
@@ -62,6 +50,7 @@ final class NotchHost {
             .environment(AppModel.shared.nowPlaying)
             .environment(AppModel.shared.liveActivity)
             .environment(AppModel.shared.agents)
+            .environment(AppModel.shared.shelf)
         let hosting = SilentHostingView(rootView: root)
         hosting.appearance = NSAppearance(named: .darkAqua)
         hosting.shouldAcceptHit = { [weak hosting, weak self] point in
@@ -80,7 +69,6 @@ final class NotchHost {
         }
         panel.embed(hosting: hosting)
         self.panel = panel
-        self.hostingView = hosting
         panel.setFrameImmediately(collapsedPanelFrame)
         panel.applyOverlayPolicy(showInSystemSurfaces: AppModel.shared.settings.showInSystemSurfaces)
         panel.orderFrontRegardless()
@@ -102,7 +90,7 @@ final class NotchHost {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                self?.reposition(animated: false)
+                self?.reposition()
             }
         }
 
@@ -138,6 +126,8 @@ final class NotchHost {
             return event
         }
         updateHoverFromMouseLocation()
+        applyWings()
+        observeCollapsedContent()
     }
 
     func stop() {
@@ -172,7 +162,6 @@ final class NotchHost {
         visibility = nil
         panel?.close()
         panel = nil
-        hostingView = nil
     }
 
     func visibilityRefresh() {
@@ -242,7 +231,8 @@ final class NotchHost {
     }
 
     private func performHoverHaptic() {
-        Haptics.shared.tap()
+        guard AppModel.shared.settings.hoverHaptics else { return }
+        Haptics.shared.play(.tick)
     }
 
     private func hoverFrameContainsMouse() -> Bool {
@@ -310,9 +300,10 @@ final class NotchHost {
         isPinned = false
         isExpanded = false
         isHoverPeeking = false
+        selectedStage = nil
         panel?.hasShadow = false
         panel?.setAcceptsKeyboard(false)
-        animateVisualSize(to: geometry.collapsedSize, curve: .easeOut) { [weak self] in
+        animateVisualSize(to: restingCollapsedSize, curve: .easeOut) { [weak self] in
             self?.finishWindowShrink()
         }
         if restoreApp, didActivateForExpansion, !AccessoryWindowPolicy.hasVisibleWindows {
@@ -360,7 +351,64 @@ final class NotchHost {
     }
 
     private var collapsedPanelFrame: CGRect {
-        geometry.collapsedWindowFrame(hoverPeekReserved: !AppModel.shared.settings.openOnHover)
+        geometry.collapsedWindowFrame(hoverPeekReserved: !AppModel.shared.settings.openOnHover, wings: showsWings)
+    }
+
+    private var restingCollapsedSize: CGSize {
+        geometry.collapsedSize(peeking: isHoverPeeking, wings: showsWings)
+    }
+
+    /// Anything shown in the collapsed notch. On a display with a camera housing it can only
+    /// be seen beside the camera.
+    private var collapsedContentNeedsWings: Bool {
+        guard geometry.hasWings else { return false }
+        let app = AppModel.shared
+        if app.liveActivity.current != nil { return true }
+        if app.settings.showNowPlaying, app.nowPlaying.item != nil { return true }
+        return app.settings.showAgents && app.settings.agentShowRunning && app.agents.runningSession != nil
+    }
+
+    private func observeCollapsedContent() {
+        withObservationTracking {
+            _ = collapsedContentNeedsWings
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.applyWings()
+                self?.observeCollapsedContent()
+            }
+        }
+    }
+
+    private func applyWings() {
+        let wanted = collapsedContentNeedsWings
+        guard wanted != showsWings else { return }
+        showsWings = wanted
+        // Expanded, or on the way down: `finishWindowShrink` settles on the new width.
+        guard !isExpanded, !panelFrameIsExpanded else { return }
+        if wanted {
+            panel?.setFrameImmediately(collapsedPanelFrame)
+            animateVisualSize(to: restingCollapsedSize, curve: .easeOut)
+        } else {
+            animateVisualSize(to: restingCollapsedSize, curve: .easeOut) { [weak self] in
+                guard let self, !self.isExpanded, !self.showsWings else { return }
+                self.panel?.setFrameImmediately(self.collapsedPanelFrame)
+            }
+        }
+    }
+
+    /// Files dragged onto the notch open the shelf.
+    func setDropTargeted(_ targeted: Bool) {
+        guard targeted != isDropTargeted else { return }
+        isDropTargeted = targeted
+        if targeted {
+            cancelCollapse()
+            selectedStage = .shelf
+            if !isExpanded {
+                expand(pinned: false)
+            }
+        } else if isExpanded, !isPinned, !hoverFrameContainsMouse() {
+            scheduleCollapse()
+        }
     }
 
     private func applyHoverPeek(_ on: Bool) {
@@ -368,7 +416,7 @@ final class NotchHost {
         guard !AppModel.shared.settings.openOnHover else { return }
         guard isHoverPeeking != on else { return }
         isHoverPeeking = on
-        animateVisualSize(to: geometry.collapsedSize(peeking: on), curve: .easeOut)
+        animateVisualSize(to: restingCollapsedSize, curve: .easeOut)
     }
 
     private func setWindowToCurrentState() {
@@ -380,7 +428,7 @@ final class NotchHost {
         } else {
             panel?.setFrameImmediately(collapsedPanelFrame)
             panelFrameIsExpanded = false
-            applyVisualSize(geometry.collapsedSize(peeking: isHoverPeeking))
+            applyVisualSize(restingCollapsedSize)
         }
     }
 
@@ -392,14 +440,14 @@ final class NotchHost {
            panel.frame.insetBy(dx: -12, dy: -12).contains(NSEvent.mouseLocation) {
             applyHoverPeek(true)
         } else {
-            applyVisualSize(geometry.collapsedSize)
+            applyVisualSize(restingCollapsedSize)
             panel?.setFrameImmediately(collapsedPanelFrame)
         }
         panel?.setAcceptsKeyboard(false)
         AccessoryWindowPolicy.restoreKeyWindow()
     }
 
-    private func reposition(animated: Bool) {
+    private func reposition() {
         morphAnimator.stop()
         geometry = currentGeometry()
         setWindowToCurrentState()
@@ -512,5 +560,6 @@ struct NotchRootView: View {
             .environment(AppModel.shared.nowPlaying)
             .environment(AppModel.shared.liveActivity)
             .environment(AppModel.shared.agents)
+            .environment(AppModel.shared.shelf)
     }
 }

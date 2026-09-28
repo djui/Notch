@@ -10,6 +10,17 @@ enum AgentFocus {
         }
     }
 
+    /// Types a reply into the session's iTerm2 session or Terminal tab and presses Return.
+    static func reply(_ text: String, to session: AgentSession) {
+        Task { @MainActor in
+            if let id = session.host.itermSessionID {
+                _ = await runAppleScript(iTermReplyScript, arguments: [id, text])
+            } else if let tty = session.host.tty {
+                _ = await runAppleScript(terminalReplyScript, arguments: [tty, text])
+            }
+        }
+    }
+
     private static func revealHost(of session: AgentSession) async {
         let host = session.host
         guard let bundleID = host.bundleIdentifier
@@ -104,13 +115,54 @@ enum AgentFocus {
         "end run",
     ]
 
+    private static let iTermReplyScript = [
+        "on run argv",
+        "set target to item 1 of argv",
+        "tell application id \"com.googlecode.iterm2\"",
+        "repeat with w in windows",
+        "repeat with t in tabs of w",
+        "repeat with s in sessions of t",
+        "if unique id of s is target then",
+        "tell s to write text (item 2 of argv)",
+        "return \"ok\"",
+        "end if",
+        "end repeat",
+        "end repeat",
+        "end repeat",
+        "end tell",
+        "return \"missing\"",
+        "end run",
+    ]
+
+    /// `do script` in a tab types the text and presses Return in that tab's shell or program.
+    private static let terminalReplyScript = [
+        "on run argv",
+        "set target to \"/dev/\" & item 1 of argv",
+        "tell application id \"com.apple.Terminal\"",
+        "repeat with w in windows",
+        "repeat with t in tabs of w",
+        "if tty of t is target then",
+        "do script (item 2 of argv) in t",
+        "return \"ok\"",
+        "end if",
+        "end repeat",
+        "end repeat",
+        "end tell",
+        "return \"missing\"",
+        "end run",
+    ]
+
     /// True when the script printed "ok". The timeout leaves room to answer the Automation
     /// prompt the first time.
     private static func runAppleScript(_ lines: [String], argument: String) async -> Bool {
+        await runAppleScript(lines, arguments: [argument])
+    }
+
+    private static func runAppleScript(_ lines: [String], arguments: [String]) async -> Bool {
         await withCheckedContinuation { continuation in
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-            process.arguments = lines.flatMap { ["-e", $0] } + [argument]
+            process.arguments = lines.flatMap { ["-e", $0] } + arguments
             let output = Pipe()
             process.standardOutput = output
             process.standardError = FileHandle.nullDevice

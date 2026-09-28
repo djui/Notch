@@ -6,6 +6,15 @@ enum LiveActivityKind: Equatable {
     case lowPower(percent: Int)
     case focus(FocusLiveActivity)
     case agent(AgentLiveActivity)
+    case meeting(Meeting)
+    case privacy(PrivacyLiveActivity)
+    case level(LevelMonitor.Level)
+    case headphones(AudioRouteMonitor.Headphones)
+}
+
+struct PrivacyLiveActivity: Equatable {
+    var microphone: Bool
+    var camera: Bool
 }
 
 struct FocusLiveActivity: Equatable {
@@ -37,6 +46,12 @@ final class LiveActivityCenter {
 
     let battery = BatteryMonitor()
     let focus = FocusMonitor()
+    let meetings = MeetingMonitor()
+    let privacy = PrivacyMonitor()
+    let levels = LevelMonitor()
+    let audioRoute = AudioRouteMonitor()
+    /// Monitors switched on in Settings beyond battery and Focus.
+    private var runningMonitors: Set<String> = []
 
     private var dismissItem: DispatchWorkItem?
     private var pendingFocusOff: DispatchWorkItem?
@@ -63,6 +78,24 @@ final class LiveActivityCenter {
         focus.onChange = { [weak self] snapshot in
             self?.handleFocus(snapshot)
         }
+        meetings.onSoon = { [weak self] meeting in
+            // Stay up until shortly after it starts.
+            let duration = min(7 * 60, max(30, meeting.start.timeIntervalSinceNow + 2 * 60))
+            self?.present(.meeting(meeting), duration: duration)
+        }
+        privacy.onChange = { [weak self] microphone, camera in
+            self?.present(.privacy(PrivacyLiveActivity(microphone: microphone, camera: camera)))
+        }
+        levels.onChange = { [weak self] level in
+            self?.present(.level(level), duration: 1.6)
+        }
+        audioRoute.onConnect = { [weak self] headphones in
+            self?.present(.headphones(headphones))
+        }
+        audioRoute.onBattery = { [weak self] headphones in
+            guard case .headphones(let shown) = self?.current, shown.name == headphones.name else { return }
+            self?.present(.headphones(headphones), duration: 3)
+        }
         applyPreferences()
         lastFocusOn = focus.snapshot.isOn
         lastFocusSymbol = focus.snapshot.symbolName
@@ -85,6 +118,11 @@ final class LiveActivityCenter {
         focus.stop()
         batteryStarted = false
         focusStarted = false
+        meetings.stop()
+        privacy.stop()
+        levels.stop()
+        audioRoute.stop()
+        runningMonitors.removeAll()
     }
 
     func applyPreferences() {
@@ -124,6 +162,21 @@ final class LiveActivityCenter {
             focus.stop()
             focusStarted = false
             dismissFocus()
+        }
+
+        toggle("meetings", on: settings.showMeetings, start: meetings.start, stop: meetings.stop)
+        toggle("privacy", on: settings.showPrivacy, start: privacy.start, stop: privacy.stop)
+        toggle("levels", on: settings.showLevels, start: levels.start, stop: levels.stop)
+        toggle("audioRoute", on: settings.showAudioDevices, start: audioRoute.start, stop: audioRoute.stop)
+    }
+
+    private func toggle(_ name: String, on: Bool, start: () -> Void, stop: () -> Void) {
+        if on, !runningMonitors.contains(name) {
+            runningMonitors.insert(name)
+            start()
+        } else if !on, runningMonitors.contains(name) {
+            runningMonitors.remove(name)
+            stop()
         }
     }
 

@@ -9,6 +9,7 @@ final class AppModel {
     let nowPlaying = NowPlayingMonitor()
     let liveActivity = LiveActivityCenter()
     let agents = AgentActivityCenter()
+    let shelf = ShelfStore()
     let host: NotchHost
     let statusItem = StatusItemController()
 

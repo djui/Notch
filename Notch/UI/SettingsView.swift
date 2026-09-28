@@ -101,6 +101,8 @@ private struct AppSettingsPane: View {
                 }
                 Toggle("Show menu bar icon", isOn: Bindable(settings).showStatusItem)
                 Toggle("Open on hover", isOn: Bindable(settings).openOnHover)
+                Toggle("Tap the trackpad when the pointer enters the notch", isOn: Bindable(settings).hoverHaptics)
+                Toggle("Keep files dropped on the notch", isOn: Bindable(settings).showShelf)
                 Toggle("Show during fullscreen, Mission Control, and screenshots", isOn: Bindable(settings).showInSystemSurfaces)
             }
         }
@@ -132,6 +134,7 @@ private struct MediaPlaybackSettingsPane: View {
 
 private struct LiveActivitiesSettingsPane: View {
     @Environment(AppSettings.self) private var settings
+    @Environment(LiveActivityCenter.self) private var liveActivity
 
     var body: some View {
         Form {
@@ -141,6 +144,29 @@ private struct LiveActivitiesSettingsPane: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Toggle("Show Focus in notch", isOn: Bindable(settings).showFocus)
+                Toggle("Show when the microphone or camera turns on", isOn: Bindable(settings).showPrivacy)
+                Toggle("Show headphones connecting, with battery", isOn: Bindable(settings).showAudioDevices)
+                Toggle("Show volume and brightness changes", isOn: Bindable(settings).showLevels)
+                Text("The system's own volume and brightness indicator still appears. Brightness needs Accessibility.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Calendar") {
+                Toggle("Count down to the next meeting", isOn: Bindable(settings).showMeetings)
+                Text("Five minutes ahead, with a Join button for Zoom, Meet, Teams, Webex, and FaceTime links.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if settings.showMeetings, liveActivity.meetings.accessDenied {
+                    Text("Notch doesn't have access to your calendars.")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                    Button("Open Calendar Privacy Settings") {
+                        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }
+                }
             }
         }
         .formStyle(.grouped)
@@ -153,6 +179,14 @@ private struct AgentsSettingsPane: View {
     @Environment(AgentActivityCenter.self) private var agents
     @State private var statuses: [CodingAgent: AgentHookInstaller.Status] = [:]
     @State private var hookError: String?
+    @State private var commandLineInstalled = false
+
+    private var commandLineHint: String {
+        if let link = AgentHookInstaller.commandLineLinkURL() {
+            return "Linked into \(link.deletingLastPathComponent().path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))"
+        }
+        return "~/.config/notch/notch; add it to your PATH"
+    }
 
     var body: some View {
         Form {
@@ -179,11 +213,23 @@ private struct AgentsSettingsPane: View {
                 Text("Requests for attention always show.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                Toggle("Show a timer while an agent works", isOn: Bindable(settings).agentShowRunning)
+            }
+            .disabled(!settings.showAgents)
+
+            Section("Answer from the notch") {
+                Toggle("Allow or deny permission prompts from the notch", isOn: Bindable(settings).agentApprovals)
+                Text("While Claude Code or Codex runs in the background, Notch holds a permission prompt for up to 25 seconds so you can answer it here. After that, or when the agent's app is in front, the agent asks as usual. Needs the hooks below to be installed or repaired.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("Questions from agents in iTerm2 or Terminal can be answered with the reply button in the expanded notch.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             .disabled(!settings.showAgents)
 
             Section {
-                ForEach(CodingAgent.allCases) { agent in
+                ForEach(CodingAgent.hookable) { agent in
                     hookRow(agent)
                 }
                 if let hookError {
@@ -195,6 +241,37 @@ private struct AgentsSettingsPane: View {
                 Text("Hooks")
             } footer: {
                 Text("Notch adds its hook after yours and keeps the previous file as <name>.notch-backup. Codex runs new hooks once you trust them with /hooks. Cursor has no hook for approval prompts, so it reports finished and failed runs.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("notch command")
+                        Text(commandLineHint)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    if commandLineInstalled {
+                        Label("Installed", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                            .labelStyle(.titleAndIcon)
+                        Button("Remove") {
+                            AgentHookInstaller.uninstallCommandLineTool()
+                            refresh()
+                        }
+                    } else {
+                        Button("Install") {
+                            update { try AgentHookInstaller.installCommandLineTool() }
+                        }
+                    }
+                }
+            } header: {
+                Text("Any command")
+            } footer: {
+                Text("notch done \"Tests passed\", notch fail, notch ask, or notch run make test to report how a command went.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -272,10 +349,11 @@ private struct AgentsSettingsPane: View {
 
     private func refresh() {
         var next: [CodingAgent: AgentHookInstaller.Status] = [:]
-        for agent in CodingAgent.allCases {
+        for agent in CodingAgent.hookable {
             next[agent] = AgentHookInstaller.status(for: agent)
         }
         statuses = next
+        commandLineInstalled = AgentHookInstaller.commandLineToolInstalled()
     }
 }
 

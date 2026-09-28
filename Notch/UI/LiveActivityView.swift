@@ -3,11 +3,13 @@ import SwiftUI
 
 struct LiveActivityView: View {
     let activity: LiveActivityKind
+    /// Width hidden behind the camera housing; leading and trailing content stay outside it.
+    var centerGap: CGFloat = 0
 
     var body: some View {
         HStack(spacing: 8) {
             leading
-            Spacer(minLength: 8)
+            Spacer(minLength: max(8, centerGap))
             trailing
         }
         .padding(.horizontal, 16)
@@ -35,6 +37,41 @@ struct LiveActivityView: View {
                     .foregroundStyle(agent.agent.tint)
                     .modifier(AttentionPulse(active: agent.state == .attention))
                 Text(agent.agent.shortTitle)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+            }
+        case .meeting(let meeting):
+            HStack(spacing: 5) {
+                Image(systemName: "calendar")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(meeting.calendarColor.map { Color(nsColor: $0) } ?? .red)
+                Text(meeting.title)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+            }
+        case .privacy(let privacy):
+            HStack(spacing: 5) {
+                if privacy.microphone {
+                    Image(systemName: "mic.fill").foregroundStyle(Color.privacyMicrophone)
+                }
+                if privacy.camera {
+                    Image(systemName: "video.fill").foregroundStyle(Color.privacyCamera)
+                }
+            }
+            .font(.system(size: 11, weight: .bold))
+        case .level(let level):
+            Image(systemName: level.symbolName)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 18)
+        case .headphones(let headphones):
+            HStack(spacing: 5) {
+                Image(systemName: headphones.symbolName)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white)
+                Text(headphones.shortName)
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.white)
                     .lineLimit(1)
@@ -104,7 +141,121 @@ struct LiveActivityView: View {
                 .foregroundStyle(agent.state.tint(question: agent.isQuestion))
                 .lineLimit(1)
                 .layoutPriority(1)
+        case .meeting(let meeting):
+            TimelineView(.periodic(from: .now, by: 10)) { context in
+                Text(meeting.countdown(at: context.date))
+                    .font(.system(size: 12, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(.white.opacity(0.92))
+            }
+            .layoutPriority(1)
+        case .privacy(let privacy):
+            Text(privacy.label)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(privacy.camera ? Color.privacyCamera : Color.privacyMicrophone)
+                .lineLimit(1)
+        case .level(let level):
+            LevelBar(value: level.value)
+                .frame(width: 56, height: 5)
+        case .headphones(let headphones):
+            Text(headphones.lowestBattery ?? "Connected")
+                .font(.system(size: 11, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(.white.opacity(0.85))
+                .lineLimit(1)
+                .layoutPriority(1)
         }
+    }
+}
+
+private struct LevelBar: View {
+    var value: Float
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.white.opacity(0.22))
+                Capsule()
+                    .fill(Color.white)
+                    .frame(width: geo.size.width * CGFloat(min(1, max(0, value))))
+            }
+        }
+        .animation(.easeOut(duration: 0.12), value: value)
+        .accessibilityHidden(true)
+    }
+}
+
+extension Color {
+    static let privacyMicrophone = Color(red: 1.0, green: 0.62, blue: 0.04)
+    static let privacyCamera = Color(red: 0.2, green: 0.84, blue: 0.29)
+}
+
+extension PrivacyLiveActivity {
+    var label: String {
+        switch (microphone, camera) {
+        case (true, true): "Mic & Camera"
+        case (false, true): "Camera on"
+        default: "Mic on"
+        }
+    }
+}
+
+extension LevelMonitor.Level {
+    var value: Float {
+        switch self {
+        case .volume(let value, let muted): muted ? 0 : value
+        case .brightness(let value): value
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .volume(let value, let muted):
+            if muted || value == 0 { return "speaker.slash.fill" }
+            return value < 0.33 ? "speaker.wave.1.fill" : value < 0.66 ? "speaker.wave.2.fill" : "speaker.wave.3.fill"
+        case .brightness(let value):
+            return value < 0.5 ? "sun.min.fill" : "sun.max.fill"
+        }
+    }
+}
+
+extension AudioRouteMonitor.Headphones {
+    var symbolName: String {
+        let lower = name.lowercased()
+        if lower.contains("airpods max") { return "airpodsmax" }
+        if lower.contains("airpods pro") { return "airpodspro" }
+        if lower.contains("airpods") { return "airpods" }
+        if lower.contains("beats") { return "beats.headphones" }
+        return "headphones"
+    }
+
+    /// The emptier earbud, or the only level, so it fits beside the camera. The expanded
+    /// Bluetooth menu has the rest.
+    var lowestBattery: String? {
+        guard let battery else { return nil }
+        let levels = battery.split(separator: "·")
+            .filter { !$0.contains("Case") }
+            .compactMap { Int($0.filter(\.isNumber)) }
+        return levels.min().map { "\($0)%" } ?? battery
+    }
+
+    /// “Djui’s AirPods Pro” becomes “AirPods Pro”.
+    var shortName: String {
+        for separator in ["’s ", "'s "] {
+            if let range = name.range(of: separator) {
+                return String(name[range.upperBound...])
+            }
+        }
+        return name
+    }
+}
+
+extension Meeting {
+    func countdown(at date: Date) -> String {
+        let seconds = start.timeIntervalSince(date)
+        if seconds <= 30 { return "now" }
+        let minutes = Int((seconds / 60).rounded(.up))
+        return minutes < 60 ? "in \(minutes)m" : "in \(minutes / 60)h"
     }
 }
 
