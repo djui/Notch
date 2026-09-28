@@ -6,6 +6,8 @@ import SwiftUI
 struct NowPlayingStageView: View {
     var playerReveal: CGFloat
     var sideInset: CGFloat
+    /// Off while the agent inbox takes the expanded notch. The compact line still fades out.
+    var showsPlayer = true
 
     @Environment(NowPlayingMonitor.self) private var nowPlaying
     @Environment(AppSettings.self) private var settings
@@ -16,7 +18,7 @@ struct NowPlayingStageView: View {
             ZStack {
                 compactLine(item)
                     .opacity(compactOpacity)
-                if playerReveal > 0 {
+                if showsPlayer, playerReveal > 0 {
                     player(item)
                         .opacity(playerReveal)
                         .allowsHitTesting(host.isExpanded && playerReveal > 0.9)

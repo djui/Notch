@@ -13,6 +13,13 @@ final class AppSettings {
         static let showStatusItem = "showStatusItem"
         static let showInSystemSurfaces = "showInSystemSurfaces"
         static let layoutStyle = "layoutStyle"
+        static let showAgents = "showAgents"
+        static let agentAttention = "agentAttention"
+        static let agentFinished = "agentFinished"
+        static let agentErrors = "agentErrors"
+        static let agentOther = "agentOther"
+        static let agentSounds = "agentSounds"
+        static let agentQuietWhenFrontmost = "agentQuietWhenFrontmost"
     }
 
     var openOnHover: Bool {
@@ -61,6 +68,39 @@ final class AppSettings {
         }
     }
 
+    var showAgents: Bool {
+        didSet {
+            UserDefaults.standard.set(showAgents, forKey: Keys.showAgents)
+            AppModel.shared.agents.applyPreferences()
+        }
+    }
+
+    var agentAttention: Bool {
+        didSet { UserDefaults.standard.set(agentAttention, forKey: Keys.agentAttention) }
+    }
+
+    var agentFinished: Bool {
+        didSet { UserDefaults.standard.set(agentFinished, forKey: Keys.agentFinished) }
+    }
+
+    var agentErrors: Bool {
+        didSet { UserDefaults.standard.set(agentErrors, forKey: Keys.agentErrors) }
+    }
+
+    /// Session start and end, compaction, and subagents.
+    var agentOther: Bool {
+        didSet { UserDefaults.standard.set(agentOther, forKey: Keys.agentOther) }
+    }
+
+    var agentSounds: Bool {
+        didSet { UserDefaults.standard.set(agentSounds, forKey: Keys.agentSounds) }
+    }
+
+    /// Skip finished and other banners while the agent's terminal or IDE is frontmost.
+    var agentQuietWhenFrontmost: Bool {
+        didSet { UserDefaults.standard.set(agentQuietWhenFrontmost, forKey: Keys.agentQuietWhenFrontmost) }
+    }
+
     var launchAtLogin: Bool
 
     var loginItemBlocked: Bool {
@@ -68,32 +108,19 @@ final class AppSettings {
     }
 
     init() {
-        if UserDefaults.standard.object(forKey: Keys.openOnHover) == nil {
-            openOnHover = true
-        } else {
-            openOnHover = UserDefaults.standard.bool(forKey: Keys.openOnHover)
-        }
-        if UserDefaults.standard.object(forKey: Keys.showNowPlaying) == nil {
-            showNowPlaying = true
-        } else {
-            showNowPlaying = UserDefaults.standard.bool(forKey: Keys.showNowPlaying)
-        }
-        if UserDefaults.standard.object(forKey: Keys.showBattery) == nil {
-            showBattery = true
-        } else {
-            showBattery = UserDefaults.standard.bool(forKey: Keys.showBattery)
-        }
-        if UserDefaults.standard.object(forKey: Keys.showFocus) == nil {
-            showFocus = true
-        } else {
-            showFocus = UserDefaults.standard.bool(forKey: Keys.showFocus)
-        }
-        if UserDefaults.standard.object(forKey: Keys.showStatusItem) == nil {
-            showStatusItem = true
-        } else {
-            showStatusItem = UserDefaults.standard.bool(forKey: Keys.showStatusItem)
-        }
-        showInSystemSurfaces = UserDefaults.standard.bool(forKey: Keys.showInSystemSurfaces)
+        openOnHover = Self.bool(Keys.openOnHover, default: true)
+        showNowPlaying = Self.bool(Keys.showNowPlaying, default: true)
+        showBattery = Self.bool(Keys.showBattery, default: true)
+        showFocus = Self.bool(Keys.showFocus, default: true)
+        showStatusItem = Self.bool(Keys.showStatusItem, default: true)
+        showInSystemSurfaces = Self.bool(Keys.showInSystemSurfaces, default: false)
+        showAgents = Self.bool(Keys.showAgents, default: true)
+        agentAttention = Self.bool(Keys.agentAttention, default: true)
+        agentFinished = Self.bool(Keys.agentFinished, default: true)
+        agentErrors = Self.bool(Keys.agentErrors, default: true)
+        agentOther = Self.bool(Keys.agentOther, default: false)
+        agentSounds = Self.bool(Keys.agentSounds, default: true)
+        agentQuietWhenFrontmost = Self.bool(Keys.agentQuietWhenFrontmost, default: true)
         if let stored = UserDefaults.standard.string(forKey: Keys.layoutStyle),
            let style = NotchLayoutStyle(rawValue: stored) {
             layoutStyle = style
@@ -101,6 +128,10 @@ final class AppSettings {
             layoutStyle = .notch
         }
         launchAtLogin = SMAppService.mainApp.status == .enabled
+    }
+
+    private static func bool(_ key: String, default value: Bool) -> Bool {
+        UserDefaults.standard.object(forKey: key) == nil ? value : UserDefaults.standard.bool(forKey: key)
     }
 
     @discardableResult

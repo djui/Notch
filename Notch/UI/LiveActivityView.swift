@@ -28,6 +28,17 @@ struct LiveActivityView: View {
                 .foregroundStyle(.white)
         case .focus(let focus):
             focusSymbol(focus)
+        case .agent(let agent):
+            HStack(spacing: 5) {
+                Image(systemName: agent.agent.symbolName)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(agent.agent.tint)
+                    .modifier(AttentionPulse(active: agent.state == .attention))
+                Text(agent.agent.shortTitle)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+            }
         }
     }
 
@@ -87,6 +98,12 @@ struct LiveActivityView: View {
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.92))
                 .lineLimit(1)
+        case .agent(let agent):
+            Text(agent.label)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(agent.state.tint(question: agent.isQuestion))
+                .lineLimit(1)
+                .layoutPriority(1)
         }
     }
 }

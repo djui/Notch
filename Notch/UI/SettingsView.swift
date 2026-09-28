@@ -5,6 +5,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
     case app
     case media
     case liveActivities
+    case agents
     case permissions
     case about
 
@@ -15,6 +16,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
         case .app: "App"
         case .media: "Media Playback"
         case .liveActivities: "Live Activities"
+        case .agents: "Coding Agents"
         case .permissions: "Permissions"
         case .about: "About"
         }
@@ -25,6 +27,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
         case .app: "gearshape"
         case .media: "play.circle"
         case .liveActivities: "bolt.circle"
+        case .agents: "bell.badge"
         case .permissions: "hand.raised"
         case .about: "info.circle"
         }
@@ -65,6 +68,8 @@ private struct SettingsDetailView: View {
             MediaPlaybackSettingsPane()
         case .liveActivities:
             LiveActivitiesSettingsPane()
+        case .agents:
+            AgentsSettingsPane()
         case .permissions:
             PermissionsSettingsPane()
         case .about:
@@ -140,6 +145,137 @@ private struct LiveActivitiesSettingsPane: View {
         }
         .formStyle(.grouped)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+}
+
+private struct AgentsSettingsPane: View {
+    @Environment(AppSettings.self) private var settings
+    @Environment(AgentActivityCenter.self) private var agents
+    @State private var statuses: [CodingAgent: AgentHookInstaller.Status] = [:]
+    @State private var hookError: String?
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Show coding agents in notch", isOn: Bindable(settings).showAgents)
+                if let error = agents.serverError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            } footer: {
+                Text("Claude Code, Cursor, and Codex report to Notch through hooks. Events stay on this Mac.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Notify when an agent") {
+                Toggle("Needs your attention", isOn: Bindable(settings).agentAttention)
+                Toggle("Finishes", isOn: Bindable(settings).agentFinished)
+                Toggle("Fails", isOn: Bindable(settings).agentErrors)
+                Toggle("Starts, compacts, or ends a session", isOn: Bindable(settings).agentOther)
+                Toggle("Play sounds", isOn: Bindable(settings).agentSounds)
+                Toggle("Stay quiet while the agent's app is in front", isOn: Bindable(settings).agentQuietWhenFrontmost)
+                Text("Requests for attention always show.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .disabled(!settings.showAgents)
+
+            Section {
+                ForEach(CodingAgent.allCases) { agent in
+                    hookRow(agent)
+                }
+                if let hookError {
+                    Text(hookError)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            } header: {
+                Text("Hooks")
+            } footer: {
+                Text("Notch adds its hook after yours and keeps the previous file as <name>.notch-backup. Codex runs new hooks once you trust them with /hooks. Cursor has no hook for approval prompts, so it reports finished and failed runs.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                Button("Send Test Notification") {
+                    agents.sendTestNotification()
+                }
+                .disabled(!settings.showAgents)
+            }
+        }
+        .formStyle(.grouped)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .onAppear(perform: refresh)
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            refresh()
+        }
+    }
+
+    private func hookRow(_ agent: CodingAgent) -> some View {
+        let status = statuses[agent] ?? .notInstalled
+        return HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(agent.title)
+                Text(agent.hookConfigDisplayPath)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            hookStatusLabel(status)
+            switch status {
+            case .installed:
+                Button("Remove") { update { try AgentHookInstaller.uninstall(agent) } }
+            case .partial:
+                Button("Repair") { update { try AgentHookInstaller.install(agent) } }
+            case .notInstalled, .notDetected:
+                Button("Install") { update { try AgentHookInstaller.install(agent) } }
+            case .unreadable:
+                EmptyView()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func hookStatusLabel(_ status: AgentHookInstaller.Status) -> some View {
+        switch status {
+        case .installed:
+            Label("Installed", systemImage: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+                .labelStyle(.titleAndIcon)
+        case .partial:
+            Text("Incomplete")
+                .foregroundStyle(.orange)
+        case .notInstalled:
+            Text("Not installed")
+                .foregroundStyle(.secondary)
+        case .notDetected:
+            Text("Not found")
+                .foregroundStyle(.tertiary)
+        case .unreadable:
+            Text("Config is not valid JSON")
+                .foregroundStyle(.red)
+        }
+    }
+
+    private func update(_ change: () throws -> Void) {
+        do {
+            try change()
+            hookError = nil
+        } catch {
+            hookError = error.localizedDescription
+        }
+        refresh()
+    }
+
+    private func refresh() {
+        var next: [CodingAgent: AgentHookInstaller.Status] = [:]
+        for agent in CodingAgent.allCases {
+            next[agent] = AgentHookInstaller.status(for: agent)
+        }
+        statuses = next
     }
 }
 

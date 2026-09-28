@@ -49,13 +49,21 @@ enum MediaRemoteBridge {
         process.standardError = FileHandle.nullDevice
         do {
             try process.run()
-            process.waitUntilExit()
         } catch {
             NSLog("Notch: MediaRemote helper failed: \(error.localizedDescription)")
             return nil
         }
-        guard captureOutput else { return Data() }
-        return stdout.fileHandleForReading.readDataToEndOfFile()
+        // The helper gives up on MediaRemote after 2.5 seconds; never wait much longer than that.
+        let watchdog = DispatchWorkItem {
+            if process.isRunning { process.terminate() }
+        }
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 5, execute: watchdog)
+        defer { watchdog.cancel() }
+        // Drain before waiting: artwork is often larger than the pipe buffer, and the helper
+        // cannot exit until someone reads it.
+        let output = captureOutput ? stdout.fileHandleForReading.readDataToEndOfFile() : Data()
+        process.waitUntilExit()
+        return output
     }
 
     private static let perlLoader = """

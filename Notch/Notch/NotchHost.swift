@@ -33,6 +33,7 @@ final class NotchHost {
     private var globalHoverMonitor: Any?
     private var localHoverMonitor: Any?
     private var isMouseInHoverTarget = false
+    private var didActivateForExpansion = false
     private var visibility: NotchVisibility?
     private let morphAnimator = NotchMorphAnimator()
     private var workspaceObservers: [NSObjectProtocol] = []
@@ -60,6 +61,7 @@ final class NotchHost {
             .environment(AppModel.shared.settings)
             .environment(AppModel.shared.nowPlaying)
             .environment(AppModel.shared.liveActivity)
+            .environment(AppModel.shared.agents)
         let hosting = SilentHostingView(rootView: root)
         hosting.appearance = NSAppearance(named: .darkAqua)
         hosting.shouldAcceptHit = { [weak hosting, weak self] point in
@@ -282,14 +284,18 @@ final class NotchHost {
 
     func expand(pinned: Bool) {
         cancelCollapse()
-        rememberFrontmostApp()
         isPinned = pinned
         isHoverPeeking = false
         panel?.hasShadow = false
-        panel?.setAcceptsKeyboard(true)
         panel?.orderFrontRegardless()
-        NSApp.activate(ignoringOtherApps: true)
-        panel?.makeKey()
+        // Only a click takes keyboard focus. Hovering must not pull it from the app you type in.
+        if pinned, !didActivateForExpansion {
+            rememberFrontmostApp()
+            panel?.setAcceptsKeyboard(true)
+            NSApp.activate(ignoringOtherApps: true)
+            panel?.makeKey()
+            didActivateForExpansion = true
+        }
         // Jump the window to the expanded rect with no animation. WindowServer
         // otherwise scales the panel from its center (the notch drops, then zooms).
         panel?.setFrameImmediately(geometry.expandedPanelFrame)
@@ -309,9 +315,10 @@ final class NotchHost {
         animateVisualSize(to: geometry.collapsedSize, curve: .easeOut) { [weak self] in
             self?.finishWindowShrink()
         }
-        if restoreApp, !AccessoryWindowPolicy.hasVisibleWindows {
+        if restoreApp, didActivateForExpansion, !AccessoryWindowPolicy.hasVisibleWindows {
             previousApp?.activate()
         }
+        didActivateForExpansion = false
     }
 
     func openSettings() {
@@ -335,6 +342,14 @@ final class NotchHost {
         collapse(restoreApp: false)
         panel?.setAcceptsKeyboard(false)
         NowPlayingSource.reveal(item)
+    }
+
+    func openAgentSession(_ session: AgentSession) {
+        suppressHoverExpand = true
+        collapse(restoreApp: false)
+        panel?.setAcceptsKeyboard(false)
+        AppModel.shared.agents.acknowledge(session.id)
+        AgentFocus.reveal(session)
     }
 
     private func rememberFrontmostApp() {
@@ -496,5 +511,6 @@ struct NotchRootView: View {
             .environment(settings)
             .environment(AppModel.shared.nowPlaying)
             .environment(AppModel.shared.liveActivity)
+            .environment(AppModel.shared.agents)
     }
 }

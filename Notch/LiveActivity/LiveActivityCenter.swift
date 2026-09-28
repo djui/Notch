@@ -5,6 +5,7 @@ enum LiveActivityKind: Equatable {
     case charging(percent: Int)
     case lowPower(percent: Int)
     case focus(FocusLiveActivity)
+    case agent(AgentLiveActivity)
 }
 
 struct FocusLiveActivity: Equatable {
@@ -31,6 +32,8 @@ extension FocusSnapshot {
 @MainActor
 final class LiveActivityCenter {
     private(set) var current: LiveActivityKind?
+    /// Called with an activity that timed out or was dismissed, not one that was replaced.
+    @ObservationIgnored var onEnd: ((LiveActivityKind) -> Void)?
 
     let battery = BatteryMonitor()
     let focus = FocusMonitor()
@@ -130,13 +133,25 @@ final class LiveActivityCenter {
         }
         dismissItem?.cancel()
         let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
             withAnimation(.easeInOut(duration: 0.32)) {
-                self?.current = nil
+                self.current = nil
             }
-            self?.dismissItem = nil
+            self.dismissItem = nil
+            self.onEnd?(activity)
         }
         dismissItem = work
         DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: work)
+    }
+
+    func dismiss(where matches: (LiveActivityKind) -> Bool) {
+        guard let current, matches(current) else { return }
+        withAnimation(.easeInOut(duration: 0.32)) {
+            self.current = nil
+        }
+        dismissItem?.cancel()
+        dismissItem = nil
+        onEnd?(current)
     }
 
     private func handleBattery(_ snapshot: BatterySnapshot) {
@@ -159,25 +174,18 @@ final class LiveActivityCenter {
     }
 
     private func dismissBattery() {
-        switch current {
-        case .charging, .lowPower:
-            withAnimation(.easeInOut(duration: 0.32)) {
-                current = nil
+        dismiss { activity in
+            switch activity {
+            case .charging, .lowPower: true
+            default: false
             }
-            dismissItem?.cancel()
-            dismissItem = nil
-        default:
-            break
         }
     }
 
     private func dismissFocus() {
-        if case .focus = current {
-            withAnimation(.easeInOut(duration: 0.32)) {
-                current = nil
-            }
-            dismissItem?.cancel()
-            dismissItem = nil
+        dismiss { activity in
+            if case .focus = activity { return true }
+            return false
         }
         lastFocusOn = false
         lastFocusModeID = nil

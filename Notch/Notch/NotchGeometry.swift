@@ -9,6 +9,8 @@ struct NotchGeometry: Equatable {
     var collapsedFrame: CGRect
     var expandedSize: CGSize
     var earRadius: CGFloat
+    /// Height of the camera housing, where the display has no pixels. Zero without a hardware notch.
+    var hardwareNotchHeight: CGFloat
 
     static let artificialWidth: CGFloat = 185
     static let hoverPeekWidth: CGFloat = 14
@@ -27,6 +29,9 @@ struct NotchGeometry: Equatable {
 
     /// Gap between the visual top and the display top (island sits in the menu bar).
     var topHitPadding: CGFloat { max(0, screenFrame.maxY - collapsedFrame.maxY) }
+
+    /// Expanded content below this offset from the visual top is clear of the camera housing.
+    var contentTopInset: CGFloat { max(0, hardwareNotchHeight - topHitPadding) }
 
     /// 0 at collapsed height, 1 at expanded height. Peek sits near 0.
     func morphProgress(visualSize: CGSize) -> CGFloat {
@@ -188,7 +193,8 @@ struct NotchGeometry: Equatable {
         let collapsed: CGRect
         let isArtificial: Bool
         let earRadius: CGFloat
-        if let real = hardwareNotchFrame(on: screen) {
+        let hardware = hardwareNotchFrame(on: screen)
+        if let real = hardware {
             collapsed = style == .island
                 ? islandFrame(covering: real, on: screen)
                 : notchFrame(covering: real, on: screen)
@@ -213,7 +219,8 @@ struct NotchGeometry: Equatable {
                 for: screen,
                 collapsedWidth: collapsed.width
             ),
-            earRadius: earRadius
+            earRadius: earRadius,
+            hardwareNotchHeight: hardware?.height ?? 0
         )
     }
 

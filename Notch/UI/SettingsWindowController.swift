@@ -45,6 +45,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             let root = SettingsView()
                 .environment(AppModel.shared.settings)
                 .environment(AppModel.shared.nowPlaying)
+                .environment(AppModel.shared.agents)
             let hosting = NSHostingController(rootView: root)
             let window = NSWindow(contentViewController: hosting)
             window.title = "Notch Settings"

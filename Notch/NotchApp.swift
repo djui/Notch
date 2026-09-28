@@ -9,6 +9,7 @@ struct NotchApp: App {
             SettingsView()
                 .environment(AppModel.shared.settings)
                 .environment(AppModel.shared.nowPlaying)
+                .environment(AppModel.shared.agents)
         }
     }
 }

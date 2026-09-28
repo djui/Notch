@@ -363,12 +363,19 @@ final class NowPlayingMonitor {
       stdout.writeData(data);
     }
 
+    // An empty line every few seconds: once Notch is gone the write fails and the helper
+    // exits instead of polling forever.
+    let ticks = 0;
     while (true) {
       try {
         const current = snapshot();
         emit(current === null ? {} : current);
       } catch (e) {
         emit({});
+      }
+      ticks += 1;
+      if (ticks % 7 === 0) {
+        stdout.writeData($('\\n').dataUsingEncoding($.NSUTF8StringEncoding));
       }
       delay(0.7);
     }
