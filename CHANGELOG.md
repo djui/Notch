@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+- On MacBooks with a camera notch, show collapsed content beside the camera so it is visible.
+- Switch between Now Playing, coding agents, the next meeting, and the shelf in the expanded notch.
+- Show a timer while a coding agent works, reply to agent questions in iTerm2 or Terminal, and allow or deny permission prompts from the notch.
+- Count down to the end of a Claude rate limit and say when it lifts.
+- Add a `notch` command: `notch done`, `notch fail`, `notch ask`, and `notch run`.
+- Count down to the next calendar event with a Join button for video calls.
+- Announce the microphone or camera turning on, headphones connecting with their battery level, and volume and brightness changes.
+- Hold files dragged onto the notch on a shelf; drag them out or AirDrop them.
+- Distinct trackpad taps for requests, finished tasks, and failures, and a setting to turn off hover taps.
 - Show Claude Code, Cursor, and Codex in the notch when they need permission, ask a question, finish, or fail, with sounds and a list of recent sessions in the expanded notch. Install the hooks from Settings → Coding Agents.
 - Click a coding-agent session to jump to its iTerm2 or Terminal tab, or to the editor window for its project.
 - Show "Nothing playing" instead of an empty expanded notch.

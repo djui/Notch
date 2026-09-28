@@ -30,16 +30,27 @@ final class AgentHookServer: @unchecked Sendable {
     }
 
     static let maxBodySize = 1 << 20
+    /// Longest Notch holds a `/decide/` request; the hook script gives curl a bit more.
+    static let decisionWait: TimeInterval = 45
+
+    /// Answers a `/decide/` request: JSON for the hook to print, or nil for no decision.
+    typealias Decider = @Sendable (AgentHookRequest, @escaping @Sendable (Data?) -> Void) -> Void
 
     let socketPath: String
     private let handler: @Sendable (AgentHookRequest) -> Void
+    private let decider: Decider?
     private let queue = DispatchQueue(label: "com.djui.notch.agent-hooks")
     private var listenSource: DispatchSourceRead?
     private var socketInode: ino_t = 0
 
-    init(socketPath: String, handler: @escaping @Sendable (AgentHookRequest) -> Void) {
+    init(
+        socketPath: String,
+        handler: @escaping @Sendable (AgentHookRequest) -> Void,
+        decider: Decider? = nil
+    ) {
         self.socketPath = socketPath
         self.handler = handler
+        self.decider = decider
     }
 
     deinit {
@@ -136,8 +147,9 @@ final class AgentHookServer: @unchecked Sendable {
             guard client >= 0 else { return }
             Self.configure(client)
             let handler = self.handler
+            let decider = self.decider
             DispatchQueue.global(qos: .utility).async {
-                Self.serve(client, handler: handler)
+                Self.serve(client, handler: handler, decider: decider)
             }
         }
     }
@@ -154,16 +166,52 @@ final class AgentHookServer: @unchecked Sendable {
         setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
     }
 
-    private static func serve(_ fd: Int32, handler: @Sendable (AgentHookRequest) -> Void) {
+    private static func serve(_ fd: Int32, handler: @Sendable (AgentHookRequest) -> Void, decider: Decider?) {
         defer { close(fd) }
         do {
             let request = try readRequest(fd)
+            if request.path.hasPrefix("/decide/"), let decider {
+                let answer = DecisionBox()
+                decider(request) { answer.finish($0) }
+                if let body = answer.wait(seconds: decisionWait), !body.isEmpty {
+                    reply(fd, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: \(body.count)\r\nConnection: close\r\n\r\n")
+                    _ = body.withUnsafeBytes { Darwin.send(fd, $0.baseAddress, $0.count, 0) }
+                } else {
+                    reply(fd, "HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
+                }
+                return
+            }
             reply(fd, "HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
             handler(request)
         } catch let failure as HTTPFailure {
             reply(fd, "HTTP/1.1 \(failure.status)\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
         } catch {
             return
+        }
+    }
+
+    /// Holds a connection's thread until the decision arrives or time runs out.
+    private final class DecisionBox: @unchecked Sendable {
+        private let semaphore = DispatchSemaphore(value: 0)
+        private let lock = NSLock()
+        private var body: Data?
+        private var done = false
+
+        func finish(_ data: Data?) {
+            lock.lock()
+            defer { lock.unlock() }
+            guard !done else { return }
+            done = true
+            body = data
+            semaphore.signal()
+        }
+
+        func wait(seconds: TimeInterval) -> Data? {
+            _ = semaphore.wait(timeout: .now() + seconds)
+            lock.lock()
+            defer { lock.unlock() }
+            done = true
+            return body
         }
     }
 

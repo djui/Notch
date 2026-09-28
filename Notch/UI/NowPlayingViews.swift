@@ -6,8 +6,12 @@ import SwiftUI
 struct NowPlayingStageView: View {
     var playerReveal: CGFloat
     var sideInset: CGFloat
-    /// Off while the agent inbox takes the expanded notch. The compact line still fades out.
+    /// Off while another stage takes the expanded notch. The compact line still fades out.
     var showsPlayer = true
+    /// Keeps the player below the stage buttons and the camera housing.
+    var topInset: CGFloat = 0
+    /// Width hidden behind the camera housing in the collapsed notch.
+    var centerGap: CGFloat = 0
 
     @Environment(NowPlayingMonitor.self) private var nowPlaying
     @Environment(AppSettings.self) private var settings
@@ -34,7 +38,30 @@ struct NowPlayingStageView: View {
         playerReveal <= 0 ? 1 : max(0, 1 - playerReveal / 0.45)
     }
 
+    @ViewBuilder
     private func compactLine(_ item: NowPlayingItem) -> some View {
+        if centerGap > 0 {
+            // Beside the camera: artwork on the left, the equalizer on the right, like iPhone.
+            HStack(spacing: 6) {
+                NowPlayingArtworkView(size: 15, showsAppBadge: false)
+                Spacer(minLength: centerGap)
+                if item.isPlaying {
+                    EqualizerView(isPlaying: true, height: 11)
+                } else {
+                    Image(systemName: "pause.fill")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.62))
+                }
+            }
+            .padding(.horizontal, compactInset + 6)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .allowsHitTesting(false)
+        } else {
+            centeredLine(item)
+        }
+    }
+
+    private func centeredLine(_ item: NowPlayingItem) -> some View {
         HStack(spacing: 6) {
             NowPlayingArtworkView(size: 15, showsAppBadge: false)
                 .layoutPriority(1)
@@ -125,6 +152,7 @@ struct NowPlayingStageView: View {
         }
         .padding(.horizontal, sideInset)
         .padding(.vertical, 12)
+        .padding(.top, topInset)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 

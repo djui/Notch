@@ -30,6 +30,7 @@ enum AgentHookInstaller {
 
     static let scriptName = "notch-hook"
     static let timeout = 10
+    static let decisionTimeout = 60
 
     static var defaultHome: URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -55,12 +56,19 @@ enum AgentHookInstaller {
         }
         guard let root = try? loadConfig(configURL) else { return .unreadable }
         let hooks = root["hooks"] as? [String: Any] ?? [:]
-        let registered = agent.hookEvents.filter { event in
-            entries(in: hooks[event], agent: agent).contains(where: isNotchHook)
+        let script = scriptURL(home: home).path
+        var registered = 0
+        var current = 0
+        for event in agent.hookEvents {
+            guard let entry = entries(in: hooks[event], agent: agent).first(where: isNotchHook) else { continue }
+            registered += 1
+            // An entry written by an older Notch still works but misses newer behavior.
+            if (entry as NSDictionary).isEqual(to: agent.hookEntry(event: event, scriptPath: script)) {
+                current += 1
+            }
         }
-        if registered.isEmpty { return .notInstalled }
-        if registered.count < agent.hookEvents.count
-            || !fileManager.isExecutableFile(atPath: scriptURL(home: home).path) {
+        if registered == 0 { return .notInstalled }
+        if current < agent.hookEvents.count || !fileManager.isExecutableFile(atPath: script) {
             return .partial
         }
         return .installed
@@ -71,8 +79,9 @@ enum AgentHookInstaller {
         let configURL = agent.hookConfigURL(home: home)
         var root = try loadConfig(configURL) ?? agent.emptyConfig
         var hooks = root["hooks"] as? [String: Any] ?? [:]
-        let entry = agent.hookEntry(command: agent.hookCommand(scriptPath: scriptURL(home: home).path))
+        let script = scriptURL(home: home).path
         for event in agent.hookEvents {
+            let entry = agent.hookEntry(event: event, scriptPath: script)
             hooks[event] = try adding(entry, to: hooks[event], agent: agent, configURL: configURL)
         }
         root["hooks"] = hooks
@@ -97,8 +106,8 @@ enum AgentHookInstaller {
         }
         try saveIfChanged(root, to: configURL)
 
-        let stillUsed = CodingAgent.allCases.contains { [.installed, .partial].contains(status(for: $0, home: home)) }
-        if !stillUsed {
+        let stillUsed = CodingAgent.hookable.contains { [.installed, .partial].contains(status(for: $0, home: home)) }
+        if !stillUsed, !commandLineToolInstalled(home: home) {
             try? FileManager.default.removeItem(at: scriptURL(home: home))
         }
     }
@@ -106,9 +115,112 @@ enum AgentHookInstaller {
     /// Keeps the installed script in step with this version of Notch.
     static func refreshScript(home: URL = defaultHome) {
         let installed = FileManager.default.fileExists(atPath: scriptURL(home: home).path)
-            || CodingAgent.allCases.contains { status(for: $0, home: home) == .partial }
+            || CodingAgent.hookable.contains { status(for: $0, home: home) == .partial }
         guard installed else { return }
         try? writeScript(home: home)
+        if commandLineToolInstalled(home: home) {
+            try? writeCommandLineTool(home: home)
+        }
+    }
+
+    // MARK: - Command-line tool
+
+    static func commandLineToolURL(home: URL = defaultHome) -> URL {
+        directory(home: home).appendingPathComponent("notch")
+    }
+
+    /// `~/.local/bin` when it exists, since that is usually on PATH already.
+    static func commandLineLinkURL(home: URL = defaultHome) -> URL? {
+        let bin = home.appendingPathComponent(".local/bin", isDirectory: true)
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: bin.path, isDirectory: &isDirectory), isDirectory.boolValue else {
+            return nil
+        }
+        return bin.appendingPathComponent("notch")
+    }
+
+    static func commandLineToolInstalled(home: URL = defaultHome) -> Bool {
+        FileManager.default.isExecutableFile(atPath: commandLineToolURL(home: home).path)
+    }
+
+    static func installCommandLineTool(home: URL = defaultHome) throws {
+        try writeScript(home: home)
+        try writeCommandLineTool(home: home)
+        guard let link = commandLineLinkURL(home: home) else { return }
+        let fileManager = FileManager.default
+        if let existing = try? fileManager.destinationOfSymbolicLink(atPath: link.path) {
+            guard existing != commandLineToolURL(home: home).path else { return }
+        }
+        // Never replace someone else's `notch`.
+        guard !fileManager.fileExists(atPath: link.path) else { return }
+        try fileManager.createSymbolicLink(at: link, withDestinationURL: commandLineToolURL(home: home))
+    }
+
+    static func uninstallCommandLineTool(home: URL = defaultHome) {
+        let fileManager = FileManager.default
+        if let link = commandLineLinkURL(home: home),
+           (try? fileManager.destinationOfSymbolicLink(atPath: link.path)) == commandLineToolURL(home: home).path {
+            try? fileManager.removeItem(at: link)
+        }
+        try? fileManager.removeItem(at: commandLineToolURL(home: home))
+        let hooksUsed = CodingAgent.hookable.contains { [.installed, .partial].contains(status(for: $0, home: home)) }
+        if !hooksUsed {
+            try? fileManager.removeItem(at: scriptURL(home: home))
+        }
+    }
+
+    private static func writeCommandLineTool(home: URL) throws {
+        let url = commandLineToolURL(home: home)
+        let contents = commandLineToolContents(hookPath: scriptURL(home: home).path)
+        if (try? String(contentsOf: url, encoding: .utf8)) != contents {
+            try contents.write(to: url, atomically: true, encoding: .utf8)
+        }
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+    }
+
+    /// `notch done|fail|ask [message]` and `notch run command…`, sent through `notch-hook`.
+    static func commandLineToolContents(hookPath: String) -> String {
+        """
+        #!/bin/sh
+        # Lights up the notch from any shell. Installed by Notch (Settings > Coding Agents).
+        #   notch done "Tests passed"     notch fail "Deploy failed"     notch ask "Pick a name"
+        #   notch run make test           runs the command, then reports how it went
+
+        hook=\(shellQuoted(hookPath))
+
+        usage() {
+          echo "usage: notch done|fail|ask [message]" >&2
+          echo "       notch run command [arguments...]" >&2
+        }
+
+        escape() {
+          printf '%s' "$1" | sed -e 's/\\\\/\\\\\\\\/g' -e 's/"/\\\\"/g' | tr '\\t\\r\\n' '   '
+        }
+
+        send() {
+          printf '{"hook_event_name":"Command","session_id":"cmd-%s-%s","cwd":"%s","status":"%s","message":"%s","command":"%s","duration":%s,"exit_code":%s}' \\
+            "$$" "$(date +%s)" "$(escape "$PWD")" "$1" "$(escape "$2")" "$(escape "$3")" "${4:-0}" "${5:-0}" \\
+            | "$hook" command
+        }
+
+        case "${1:-}" in
+          done) shift; send done "$*" ;;
+          fail) shift; send failed "$*" ;;
+          ask) shift; send attention "$*" ;;
+          run)
+            shift
+            if [ $# -eq 0 ]; then usage; exit 2; fi
+            started=$(date +%s)
+            "$@"
+            code=$?
+            if [ $code -eq 0 ]; then status=done; else status=failed; fi
+            send "$status" "" "$*" "$(( $(date +%s) - started ))" "$code"
+            exit $code
+            ;;
+          *) usage; exit 2 ;;
+        esac
+
+        """
     }
 
     static func writeScript(home: URL = defaultHome) throws {
@@ -135,6 +247,7 @@ enum AgentHookInstaller {
         # Usage: notch-hook [claude|cursor|codex] < hook-payload.json
 
         agent="${1:-}"
+        mode="${2:-}"
         if [ -z "$agent" ] && [ -n "${CURSOR_VERSION:-}" ]; then
           agent=cursor
         fi
@@ -144,16 +257,30 @@ enum AgentHookInstaller {
           exit 0
         fi
         tty=$(ps -o tty= -p $$ 2>/dev/null | tr -d ' ')
-        /usr/bin/curl --silent --output /dev/null --max-time 2 \\
-          --unix-socket "$socket" \\
-          --header 'Content-Type: application/json' \\
-          --header 'Expect:' \\
-          --header "X-Notch-Host-Bundle: ${__CFBundleIdentifier:-}" \\
-          --header "X-Notch-Term-Program: ${TERM_PROGRAM:-}" \\
-          --header "X-Notch-Iterm-Session: ${ITERM_SESSION_ID:-}" \\
-          --header "X-Notch-TTY: $tty" \\
-          --data-binary @- \\
-          "http://localhost/agents/$agent" >/dev/null 2>&1
+
+        send() {
+          /usr/bin/curl --silent --max-time "$1" \\
+            --unix-socket "$socket" \\
+            --header 'Content-Type: application/json' \\
+            --header 'Expect:' \\
+            --header "X-Notch-Host-Bundle: ${__CFBundleIdentifier:-}" \\
+            --header "X-Notch-Term-Program: ${TERM_PROGRAM:-}" \\
+            --header "X-Notch-Iterm-Session: ${ITERM_SESSION_ID:-}" \\
+            --header "X-Notch-TTY: $tty" \\
+            --data-binary @- \\
+            "http://localhost/$2/$agent" 2>/dev/null
+        }
+
+        # --decide: wait for an Allow or Deny from the notch, then print it as the hook's answer.
+        # Notch answers right away with nothing when it isn't going to ask.
+        if [ "$mode" = "--decide" ]; then
+          answer=$(send 50 decide)
+          if [ -n "$answer" ]; then
+            printf '%s\\n' "$answer"
+          fi
+        else
+          send 2 agents >/dev/null
+        fi
         exit 0
 
         """
@@ -247,7 +374,12 @@ enum AgentHookInstaller {
                 return
             }
             permissions = try? fileManager.attributesOfItem(atPath: target.path)[.posixPermissions]
-            try existing.write(to: target.appendingPathExtension("notch-backup"), options: .atomic)
+            let backup = target.appendingPathExtension("notch-backup")
+            try existing.write(to: backup, options: .atomic)
+            // The backup can hold the same secrets as the original.
+            if let permissions {
+                try? fileManager.setAttributes([.posixPermissions: permissions], ofItemAtPath: backup.path)
+            }
         } else {
             try fileManager.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
         }
@@ -273,13 +405,14 @@ extension CodingAgent {
         case .claude: home.appendingPathComponent(".claude", isDirectory: true)
         case .cursor: home.appendingPathComponent(".cursor", isDirectory: true)
         case .codex: home.appendingPathComponent(".codex", isDirectory: true)
+        case .command: AgentHookInstaller.directory(home: home)
         }
     }
 
     func hookConfigURL(home: URL = AgentHookInstaller.defaultHome) -> URL {
         switch self {
         case .claude: homeDirectory(home: home).appendingPathComponent("settings.json")
-        case .cursor, .codex: homeDirectory(home: home).appendingPathComponent("hooks.json")
+        case .cursor, .codex, .command: homeDirectory(home: home).appendingPathComponent("hooks.json")
         }
     }
 
@@ -288,6 +421,7 @@ extension CodingAgent {
         case .claude: "~/.claude/settings.json"
         case .cursor: "~/.cursor/hooks.json"
         case .codex: "~/.codex/hooks.json"
+        case .command: "~/.config/notch/notch"
         }
     }
 
@@ -307,6 +441,8 @@ extension CodingAgent {
             ]
         case .cursor:
             ["sessionStart", "afterAgentResponse", "stop", "subagentStop", "preCompact", "sessionEnd"]
+        case .command:
+            []
         }
     }
 
@@ -318,7 +454,7 @@ extension CodingAgent {
     var emptyConfig: [String: Any] {
         switch self {
         case .cursor: ["version": 1, "hooks": [String: Any]()]
-        case .claude, .codex: ["hooks": [String: Any]()]
+        case .claude, .codex, .command: ["hooks": [String: Any]()]
         }
     }
 
@@ -327,18 +463,24 @@ extension CodingAgent {
     func hookCommand(scriptPath: String) -> String {
         let script = AgentHookInstaller.shellQuoted(scriptPath)
         switch self {
-        case .claude, .codex: return "\(script) \(rawValue)"
+        case .claude, .codex, .command: return "\(script) \(rawValue)"
         case .cursor: return script
         }
     }
 
-    /// `async` keeps Claude Code and Codex from waiting on Notch at all.
-    func hookEntry(command: String) -> [String: Any] {
+    /// `async` keeps Claude Code and Codex from waiting on Notch. Permission requests are the
+    /// exception: that hook runs in step so Notch can answer it, and it returns immediately
+    /// unless answering from the notch is on.
+    func hookEntry(event: String, scriptPath: String) -> [String: Any] {
+        let command = hookCommand(scriptPath: scriptPath)
         switch self {
-        case .claude, .codex:
-            ["type": "command", "command": command, "async": true, "timeout": AgentHookInstaller.timeout]
+        case .claude, .codex, .command:
+            if event == "PermissionRequest", acceptsDecisions {
+                return ["type": "command", "command": command + " --decide", "timeout": AgentHookInstaller.decisionTimeout]
+            }
+            return ["type": "command", "command": command, "async": true, "timeout": AgentHookInstaller.timeout]
         case .cursor:
-            ["command": command, "timeout": AgentHookInstaller.timeout]
+            return ["command": command, "timeout": AgentHookInstaller.timeout]
         }
     }
 }

@@ -77,6 +77,13 @@ struct AgentEvent: Sendable {
     /// Claude's “waiting for your input” reminder, sent a while after a turn ends.
     var isIdleReminder = false
     var endsSession = false
+    /// The user submitted a prompt; the agent is working from here.
+    var startsTurn = false
+    /// The agent is done working, whatever the outcome.
+    var endsTurn = false
+    var isToolUse = false
+    /// When a rate limit lifts, if the failure said.
+    var resetsAt: Date?
     var host = AgentHost()
     var date = Date()
 
@@ -123,6 +130,7 @@ struct AgentEvent: Sendable {
         case .claude: event.applyClaude(payload)
         case .codex: event.applyCodex(payload)
         case .cursor: event.applyCursor(payload)
+        case .command: event.applyCommand(payload)
         }
         event.completeTurn(with: event.message)
         return event
@@ -176,8 +184,15 @@ struct AgentEvent: Sendable {
         case "stop":
             set(.finished, "Done", nil)
             message = payload.text("last_assistant_message")
+            endsTurn = true
         case "stopfailure":
             set(.failed, "Failed", Self.failureReason(payload))
+            endsTurn = true
+            if detail == "Rate limited" {
+                let now = date
+                title = "Rate limited"
+                resetsAt = Self.strings(in: payload).lazy.compactMap { Self.resetDate(in: $0, now: now) }.first
+            }
         case "subagentstop":
             set(.info, "Subagent done", payload.text("agent_type"))
         case "sessionstart":
@@ -190,6 +205,8 @@ struct AgentEvent: Sendable {
         case "userpromptsubmit", "pretooluse", "posttooluse", "posttoolusefailure", "posttoolbatch":
             kind = .resumed
             toolUseID = payload.text("tool_use_id")
+            startsTurn = Self.key(hookName) == "userpromptsubmit"
+            isToolUse = Self.key(hookName).hasPrefix("posttooluse")
         default:
             break
         }
@@ -204,6 +221,7 @@ struct AgentEvent: Sendable {
         case "stop":
             set(.finished, "Done", nil)
             message = payload.text("last_assistant_message")
+            endsTurn = true
         case "subagentstop":
             set(.info, "Subagent done", payload.text("agent_type"))
         case "sessionstart":
@@ -216,6 +234,9 @@ struct AgentEvent: Sendable {
         case "userpromptsubmit", "pretooluse", "posttooluse", "interrupt":
             kind = .resumed
             toolUseID = payload.text("tool_use_id")
+            startsTurn = Self.key(hookName) == "userpromptsubmit"
+            isToolUse = Self.key(hookName) == "posttooluse"
+            endsTurn = Self.key(hookName) == "interrupt"
         default:
             break
         }
@@ -228,6 +249,7 @@ struct AgentEvent: Sendable {
             kind = .context
             message = payload.text("text")
         case "stop":
+            endsTurn = true
             switch payload.text("status") {
             case "error":
                 set(.failed, "Failed", nil)
@@ -248,6 +270,24 @@ struct AgentEvent: Sendable {
         default:
             break
         }
+    }
+
+    /// `notch done|fail|ask` and `notch run` (see `AgentHookInstaller.commandScriptContents`).
+    private mutating func applyCommand(_ payload: [String: Any]) {
+        let command = payload.text("command")
+        let seconds = (payload["duration"] as? NSNumber)?.intValue ?? 0
+        let exitCode = (payload["exit_code"] as? NSNumber)?.intValue ?? 0
+        var parts: [String] = []
+        if let command { parts.append(command) }
+        if seconds > 0 { parts.append(Self.duration(seconds)) }
+        if exitCode != 0 { parts.append("exit \(exitCode)") }
+        let summary = payload.text("message") ?? (parts.isEmpty ? nil : parts.joined(separator: " · "))
+        switch payload.text("status") {
+        case "failed": set(.failed, "Failed", summary)
+        case "attention": set(.attention, "Needs you", summary)
+        default: set(.finished, "Done", summary)
+        }
+        endsTurn = true
     }
 
     private mutating func set(_ kind: AgentEventKind, _ title: String, _ detail: String?) {
@@ -271,6 +311,48 @@ struct AgentEvent: Sendable {
     }
 
     // MARK: - Text
+
+    /// “2m 3s”, “1h 5m”, “42s”.
+    static func duration(_ seconds: Int) -> String {
+        if seconds < 60 { return "\(seconds)s" }
+        if seconds < 3600 { return "\(seconds / 60)m \(seconds % 60)s" }
+        return "\(seconds / 3600)h \(seconds % 3600 / 60)m"
+    }
+
+    /// Every string in a payload, for reset times that may appear in any field.
+    static func strings(in value: Any) -> [String] {
+        if let text = value as? String { return [text] }
+        if let dict = value as? [String: Any] { return dict.values.flatMap(strings) }
+        if let list = value as? [Any] { return list.flatMap(strings) }
+        return []
+    }
+
+    /// Reads “resets 3pm”, “resets at 15:30”, or “try again in 1h 20m”.
+    static func resetDate(in text: String, now: Date, calendar: Calendar = .current) -> Date? {
+        let lower = text.lowercased()
+        let clock = #"reset[s]?\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?"#
+        if let match = lower.firstMatch(of: try! Regex(clock)) {
+            var hour = Int(match.output[1].substring ?? "") ?? 0
+            let minute = match.output[2].substring.flatMap { Int($0) } ?? 0
+            switch match.output[3].substring.map(String.init) {
+            case "pm" where hour < 12: hour += 12
+            case "am" where hour == 12: hour = 0
+            default: break
+            }
+            guard hour < 24, minute < 60 else { return nil }
+            let today = calendar.date(bySettingHour: hour, minute: minute, second: 0, of: now)
+            return today.map { $0 > now ? $0 : calendar.date(byAdding: .day, value: 1, to: $0) ?? $0 }
+        }
+        let relative = #"in\s+(?:(\d+)\s*h(?:ours?)?)?\s*(?:(\d+)\s*m(?:in(?:utes?)?)?)?"#
+        for match in lower.matches(of: try! Regex(relative)) {
+            let hours = match.output[1].substring.flatMap { Int($0) } ?? 0
+            let minutes = match.output[2].substring.flatMap { Int($0) } ?? 0
+            if hours > 0 || minutes > 0 {
+                return now.addingTimeInterval(TimeInterval(hours * 3600 + minutes * 60))
+            }
+        }
+        return nil
+    }
 
     /// `PostToolUse`, `post_tool_use`, and `postToolUse` all become `posttooluse`.
     static func key(_ hookName: String) -> String {
