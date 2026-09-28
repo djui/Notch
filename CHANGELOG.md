@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-28
+
 - On MacBooks with a camera notch, show collapsed content beside the camera so it is visible.
 - Switch between Now Playing, coding agents, the next meeting, and the shelf in the expanded notch.
 - Show a timer while a coding agent works, reply to agent questions in iTerm2 or Terminal, and allow or deny permission prompts from the notch.
@@ -22,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Always show the result of a `notch` command.
 - Scroll through all coding-agent sessions in the expanded notch.
 - Add a landing page at djui.github.io/notch.
+
 
 ## [1.1.3] - 2026-09-24
 
@@ -94,7 +97,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Expand and collapse stay anchored to the top center
 - Reopen a hidden or windowless player when clicking the Now Playing title
 
-[Unreleased]: https://github.com/djui/notch/compare/v1.1.3...HEAD
+[Unreleased]: https://github.com/djui/notch/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/djui/notch/releases/tag/v1.2.0
 [1.1.3]: https://github.com/djui/notch/releases/tag/v1.1.3
 [1.1.2]: https://github.com/djui/notch/releases/tag/v1.1.2
 [1.1.1]: https://github.com/djui/notch/releases/tag/v1.1.1
