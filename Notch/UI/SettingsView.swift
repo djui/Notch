@@ -210,7 +210,7 @@ private struct AgentsSettingsPane: View {
                 Toggle("Starts, compacts, or ends a session", isOn: Bindable(settings).agentOther)
                 Toggle("Play sounds", isOn: Bindable(settings).agentSounds)
                 Toggle("Stay quiet while the agent's app is in front", isOn: Bindable(settings).agentQuietWhenFrontmost)
-                Text("Requests for attention always show.")
+                Text("Requests, failures, and the notch command always show.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Toggle("Show a timer while an agent works", isOn: Bindable(settings).agentShowRunning)

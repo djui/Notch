@@ -177,11 +177,15 @@ struct PermissionOnboardingView: View {
         case .accessibility:
             PermissionStatus.requestAccessibility()
         case .media:
-            PermissionStatus.requestAutomation(.music)
-            PermissionStatus.requestAutomation(.spotify)
+            Task { @MainActor in
+                _ = await PermissionStatus.requestAutomation(.music)
+                _ = await PermissionStatus.requestAutomation(.spotify)
+            }
         case .browsers:
-            PermissionStatus.requestAutomation(.safari)
-            PermissionStatus.requestAutomation(.chrome)
+            Task { @MainActor in
+                _ = await PermissionStatus.requestAutomation(.safari)
+                _ = await PermissionStatus.requestAutomation(.chrome)
+            }
         }
 
         if let next = OnboardingStep(rawValue: step.rawValue + 1) {

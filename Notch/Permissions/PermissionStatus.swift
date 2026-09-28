@@ -69,13 +69,15 @@ enum PermissionStatus {
 
     static func automationState(_ target: AutomationTarget, prompt: Bool) -> PermissionState {
         guard target.isInstalled else { return .unavailable }
+        return state(for: target, status: automationStatus(target, prompt: prompt))
+    }
+
+    private static func automationStatus(_ target: AutomationTarget, prompt: Bool) -> OSStatus {
         let descriptor = NSAppleEventDescriptor(bundleIdentifier: target.rawValue)
-        let status = AEDeterminePermissionToAutomateTarget(
-            descriptor.aeDesc,
-            typeWildCard,
-            typeWildCard,
-            prompt
-        )
+        return AEDeterminePermissionToAutomateTarget(descriptor.aeDesc, typeWildCard, typeWildCard, prompt)
+    }
+
+    private static func state(for target: AutomationTarget, status: OSStatus) -> PermissionState {
         switch Int(status) {
         case 0:
             rememberGranted(target)
@@ -91,8 +93,39 @@ enum PermissionStatus {
         }
     }
 
-    static func requestAutomation(_ target: AutomationTarget) {
-        _ = automationState(target, prompt: true)
+    /// macOS only asks while the target app is running, so a closed app is opened hidden for
+    /// the prompt and quit again afterwards. Asking blocks until the user answers, so it runs
+    /// off the main thread. A request that was already denied never asks again; that one opens
+    /// the Automation settings instead.
+    @MainActor
+    static func requestAutomation(_ target: AutomationTarget) async -> PermissionState {
+        guard target.isInstalled else { return .unavailable }
+        var launched: NSRunningApplication?
+        if NSRunningApplication.runningApplications(withBundleIdentifier: target.rawValue).isEmpty,
+           let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: target.rawValue) {
+            let configuration = NSWorkspace.OpenConfiguration()
+            configuration.activates = false
+            configuration.hides = true
+            configuration.addsToRecentItems = false
+            launched = try? await NSWorkspace.shared.openApplication(at: url, configuration: configuration)
+        }
+        var status = OSStatus(procNotFound)
+        // A freshly launched app takes a moment before it accepts Apple Events.
+        for attempt in 0..<10 {
+            if attempt > 0 {
+                try? await Task.sleep(for: .milliseconds(500))
+            }
+            status = await Task.detached(priority: .userInitiated) {
+                automationStatus(target, prompt: true)
+            }.value
+            if Int(status) != procNotFound { break }
+        }
+        launched?.terminate()
+        let state = state(for: target, status: status)
+        if state == .denied {
+            openAutomationSettings()
+        }
+        return state
     }
 
     private static let grantedDefaultsKey = "automationGrantedBundleIDs"
@@ -160,8 +193,8 @@ final class PermissionCenter {
     }
 
     func requestAutomation(_ target: AutomationTarget) {
-        PermissionStatus.requestAutomation(target)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+        Task { @MainActor [weak self] in
+            _ = await PermissionStatus.requestAutomation(target)
             self?.refresh()
         }
     }
