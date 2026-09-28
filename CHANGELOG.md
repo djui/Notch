@@ -90,10 +90,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Expand and collapse stay anchored to the top center
 - Reopen a hidden or windowless player when clicking the Now Playing title
 
-[Unreleased]: https://github.com/djui/Notch/compare/v1.1.3...HEAD
-[1.1.3]: https://github.com/djui/Notch/releases/tag/v1.1.3
-[1.1.2]: https://github.com/djui/Notch/releases/tag/v1.1.2
-[1.1.1]: https://github.com/djui/Notch/releases/tag/v1.1.1
-[1.1.0]: https://github.com/djui/Notch/releases/tag/v1.1.0
-[1.0.1]: https://github.com/djui/Notch/releases/tag/v1.0.1
-[1.0]: https://github.com/djui/Notch/releases/tag/v1.0
+[Unreleased]: https://github.com/djui/notch/compare/v1.1.3...HEAD
+[1.1.3]: https://github.com/djui/notch/releases/tag/v1.1.3
+[1.1.2]: https://github.com/djui/notch/releases/tag/v1.1.2
+[1.1.1]: https://github.com/djui/notch/releases/tag/v1.1.1
+[1.1.0]: https://github.com/djui/notch/releases/tag/v1.1.0
+[1.0.1]: https://github.com/djui/notch/releases/tag/v1.0.1
+[1.0]: https://github.com/djui/notch/releases/tag/v1.0

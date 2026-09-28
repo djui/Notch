@@ -174,7 +174,7 @@
   }
 
   // ---------- Latest release ----------
-  fetch('https://api.github.com/repos/djui/Notch/releases/latest', { headers: { Accept: 'application/vnd.github+json' } })
+  fetch('https://api.github.com/repos/djui/notch/releases/latest', { headers: { Accept: 'application/vnd.github+json' } })
     .then((r) => (r.ok ? r.json() : null))
     .then((release) => {
       if (!release) return;
