@@ -57,19 +57,24 @@ struct AgentInboxView: View {
         let inbox = agents.inbox
         TimelineView(.periodic(from: .now, by: 1)) { context in
             VStack(alignment: .leading, spacing: 4) {
-                ForEach(inbox.prefix(maxRows)) { session in
-                    AgentRow(
-                        session: session,
-                        now: context.date,
-                        open: { host.openAgentSession(session) },
-                        dismiss: { agents.dismiss(session.id) },
-                        answer: { agents.answer(session.id, allow: $0) },
-                        reply: { agents.reply(session.id, text: $0) }
-                    )
+                ScrollView(.vertical) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(inbox) { session in
+                            AgentRow(
+                                session: session,
+                                now: context.date,
+                                open: { host.openAgentSession(session) },
+                                dismiss: { agents.dismiss(session.id) },
+                                answer: { agents.answer(session.id, allow: $0) },
+                                reply: { agents.reply(session.id, text: $0) }
+                            )
+                        }
+                    }
                 }
+                .scrollIndicators(.never)
                 if inbox.count > maxRows {
                     HStack {
-                        Text("\(inbox.count - maxRows) more")
+                        Text("\(inbox.count) sessions")
                         Spacer()
                         Button("Clear All") { agents.clearAll() }
                             .buttonStyle(.plain)
