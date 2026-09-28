@@ -104,60 +104,59 @@ private struct AgentRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Button(action: open) {
-                HStack(spacing: 10) {
-                    Image(systemName: session.agent.symbolName)
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(session.agent.tint)
-                        .frame(width: 26, height: 26)
-                        .background(session.agent.tint.opacity(0.16), in: Circle())
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 6) {
-                            Text(session.headline)
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(.white.opacity(0.94))
-                                .lineLimit(1)
-                            Text(title)
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(session.state.tint(question: session.isQuestion))
-                                .lineLimit(1)
-                                .layoutPriority(1)
-                            Spacer(minLength: 4)
-                            if !session.awaitsDecision {
-                                Text(Self.age(of: session.updatedAt, now: now))
-                                    .font(.system(size: 10, weight: .medium))
-                                    .monospacedDigit()
-                                    .foregroundStyle(.white.opacity(0.4))
-                            }
-                        }
-                        if !isReplying, let detail {
-                            Text(detail)
-                                .font(.system(size: 11))
+            HStack(spacing: 10) {
+                Image(systemName: session.agent.symbolName)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(session.agent.tint)
+                    .frame(width: 26, height: 26)
+                    .background(session.agent.tint.opacity(0.16), in: Circle())
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(session.headline)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.94))
+                            .lineLimit(1)
+                        Text(title)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(session.state.tint(question: session.isQuestion))
+                            .lineLimit(1)
+                            .layoutPriority(1)
+                        Spacer(minLength: 4)
+                        if !session.awaitsDecision {
+                            Text(Self.age(of: session.updatedAt, now: now))
+                                .font(.system(size: 10, weight: .medium))
                                 .monospacedDigit()
-                                .foregroundStyle(.white.opacity(0.55))
-                                .lineLimit(1)
-                                .truncationMode(.tail)
+                                .foregroundStyle(.white.opacity(0.4))
                         }
                     }
+                    if isReplying {
+                        // Takes the detail line's place, so the row keeps its height.
+                        TextField("Reply to \(session.agent.shortTitle)", text: $replyText)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.white)
+                            .focused($replyFocused)
+                            .onSubmit(sendReply)
+                            .onExitCommand { isReplying = false }
+                            .padding(.horizontal, 6)
+                            .frame(height: 17)
+                            .background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+                    } else if let detail {
+                        Text(detail)
+                            .font(.system(size: 11))
+                            .monospacedDigit()
+                            .foregroundStyle(.white.opacity(0.55))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
                 }
-                .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .pointerStyle(.link)
-            .help("Show \(session.agent.shortTitle)")
-            .overlay(alignment: .bottomLeading) {
-                if isReplying {
-                    TextField("Reply to \(session.agent.shortTitle)", text: $replyText)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.white)
-                        .focused($replyFocused)
-                        .onSubmit(sendReply)
-                        .onExitCommand { isReplying = false }
-                        .padding(.leading, 36)
-                        .frame(height: 16)
-                }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if !isReplying { open() }
             }
+            .pointerStyle(isReplying ? nil : .link)
+            .help(isReplying ? "" : "Show \(session.agent.shortTitle)")
 
             if session.awaitsDecision {
                 decisionButton("Deny", prominent: false) { answer(false) }
