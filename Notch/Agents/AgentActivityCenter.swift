@@ -439,7 +439,10 @@ final class AgentActivityCenter {
         let settings = AppModel.shared.settings
         let frontmost = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
         let hostInFront = session.host.bundleIdentifier != nil && session.host.bundleIdentifier == frontmost
-        if session.state != .attention, quietWhenHostInFront, settings.agentQuietWhenFrontmost, hostInFront {
+        // Quiet covers routine “done” and info only: requests and failures always show, and so
+        // does anything from `notch`, which the user just asked for.
+        let routine = session.state == .finished || session.state == .info
+        if routine, session.agent != .command, quietWhenHostInFront, settings.agentQuietWhenFrontmost, hostInFront {
             return
         }
         AppModel.shared.liveActivity.present(
