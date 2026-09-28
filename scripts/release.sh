@@ -200,7 +200,7 @@ text = text.rstrip() + "\n\n"
 
 headings = re.findall(r"^## \[([^\]]+)\]", text, flags=re.M)
 versions = [h for h in headings if h != "Unreleased"]
-repo = "https://github.com/djui/Notch"
+repo = "https://github.com/djui/notch"
 if versions:
     text += f"[Unreleased]: {repo}/compare/v{versions[0]}...HEAD\n"
 else:

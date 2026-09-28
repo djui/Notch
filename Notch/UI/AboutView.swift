@@ -24,7 +24,7 @@ enum AppInfo {
         Bundle.main.object(forInfoDictionaryKey: "NSHumanReadableCopyright") as? String ?? ""
     }
 
-    static let homepageURL = URL(string: "https://github.com/djui/Notch")!
+    static let homepageURL = URL(string: "https://github.com/djui/notch")!
 }
 
 struct AboutView: View {

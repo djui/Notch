@@ -4,11 +4,11 @@ A macOS overlay that sits on the built-in display notch and expands into a Dynam
 
 It shows Now Playing, live activities for charging, Low Power Mode, and Focus, and tells you when Claude Code, Cursor, or Codex needs you. Clipboard history lives in [Clip](https://github.com/djui/Clip).
 
-Requires **macOS 15** or later. Website: [djui.github.io/Notch](https://djui.github.io/Notch/).
+Requires **macOS 15** or later. Website: [djui.github.io/notch](https://djui.github.io/notch/).
 
 ## Install
 
-1. Download `Notch-1.0.zip` from the [latest release](https://github.com/djui/Notch/releases/latest).
+1. Download `Notch-1.0.zip` from the [latest release](https://github.com/djui/notch/releases/latest).
 2. Unzip and move `Notch.app` to `/Applications`.
 3. Open the app.
 
