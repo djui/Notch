@@ -1,5 +1,4 @@
 import AppKit
-import ApplicationServices
 import CoreServices
 
 @MainActor
@@ -74,43 +73,13 @@ enum NowPlayingSource {
     }
 
     private static func raiseMatchingWindow(for item: NowPlayingItem, app: NSRunningApplication) {
-        guard PermissionStatus.isAccessibilityTrusted else { return }
-
-        let appElement = AXUIElementCreateApplication(app.processIdentifier)
-        AXUIElementSetAttributeValue(appElement, kAXHiddenAttribute as CFString, kCFBooleanFalse)
-
-        var windowsRef: AnyObject?
-        guard AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windowsRef) == .success,
-              let windows = windowsRef as? [AXUIElement],
-              !windows.isEmpty
-        else { return }
-
         let hint = item.displayTitle.lowercased()
         let artist = item.artist.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        var best: AXUIElement?
-        var bestScore = 0
-        for window in windows {
-            var titleRef: AnyObject?
-            guard AXUIElementCopyAttributeValue(window, kAXTitleAttribute as CFString, &titleRef) == .success,
-                  let title = titleRef as? String
-            else { continue }
-            let lower = title.lowercased()
+        WindowRaiser.raiseWindow(of: app, minimumScore: 10, fallbackToFirst: true) { title in
             var score = 0
-            if !hint.isEmpty, lower.contains(hint) { score += 10 }
-            if !artist.isEmpty, lower.contains(artist) { score += 3 }
-            if score > bestScore {
-                bestScore = score
-                best = window
-            }
+            if !hint.isEmpty, title.contains(hint) { score += 10 }
+            if !artist.isEmpty, title.contains(artist) { score += 3 }
+            return score
         }
-        raise(bestScore >= 10 ? best : windows.first)
-    }
-
-    private static func raise(_ window: AXUIElement?) {
-        guard let window else { return }
-        AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
-        AXUIElementPerformAction(window, kAXRaiseAction as CFString)
-        AXUIElementSetAttributeValue(window, kAXMainAttribute as CFString, kCFBooleanTrue)
-        AXUIElementSetAttributeValue(window, kAXFocusedAttribute as CFString, kCFBooleanTrue)
     }
 }

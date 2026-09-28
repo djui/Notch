@@ -27,7 +27,7 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Notch uses automation to read Now Playing artwork from Music, Spotify, and your browsers.</string>
+	<string>Notch uses automation to read Now Playing artwork from Music, Spotify, and your browsers, and to bring a coding agent's terminal tab to the front.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2026 Uwe Dauernheim</string>
 	<key>NSPrincipalClass</key>

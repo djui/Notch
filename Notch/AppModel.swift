@@ -8,6 +8,7 @@ final class AppModel {
     let settings = AppSettings()
     let nowPlaying = NowPlayingMonitor()
     let liveActivity = LiveActivityCenter()
+    let agents = AgentActivityCenter()
     let host: NotchHost
     let statusItem = StatusItemController()
 
@@ -23,6 +24,7 @@ final class AppModel {
         let firstLaunch = settings.applyFirstLaunchDefaults()
         nowPlaying.start()
         liveActivity.start()
+        agents.start()
         host.start()
         statusItem.install(host: host, settings: settings)
         if firstLaunch {
@@ -33,6 +35,7 @@ final class AppModel {
     func stop() {
         nowPlaying.stop()
         liveActivity.stop()
+        agents.stop()
         host.stop()
     }
 }
