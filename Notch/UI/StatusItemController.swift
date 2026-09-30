@@ -3,11 +3,11 @@ import AppKit
 @MainActor
 final class StatusItemController: NSObject, NSMenuDelegate {
     private var item: NSStatusItem?
-    private weak var host: NotchHost?
+    private weak var hosts: NotchHosts?
     private var settings: AppSettings?
 
-    func install(host: NotchHost, settings: AppSettings) {
-        self.host = host
+    func install(hosts: NotchHosts, settings: AppSettings) {
+        self.hosts = hosts
         self.settings = settings
         applyVisibility()
     }
@@ -77,7 +77,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     @objc private func openNotch() {
-        host?.toggleFromHotkey()
+        hosts?.toggleFromHotkey()
     }
 
     @objc private func selectLayout(_ sender: NSMenuItem) {
@@ -87,11 +87,11 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     @objc private func openSettings() {
-        host?.openSettings()
+        hosts?.openSettings()
     }
 
     @objc private func openAbout() {
-        host?.openAbout()
+        hosts?.openAbout()
     }
 
     @objc private func hideStatusItem() {

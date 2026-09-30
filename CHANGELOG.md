@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+- Add a setting to show the notch on every connected display.
+
 ## [1.2.0] - 2026-09-28
 
 - On MacBooks with a camera notch, show collapsed content beside the camera so it is visible.

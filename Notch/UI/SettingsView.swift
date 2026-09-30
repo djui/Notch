@@ -103,6 +103,7 @@ private struct AppSettingsPane: View {
                 Toggle("Open on hover", isOn: Bindable(settings).openOnHover)
                 Toggle("Tap the trackpad when the pointer enters the notch", isOn: Bindable(settings).hoverHaptics)
                 Toggle("Keep files dropped on the notch", isOn: Bindable(settings).showShelf)
+                Toggle("Show on all displays", isOn: Bindable(settings).showOnAllDisplays)
                 Toggle("Show during fullscreen, Mission Control, and screenshots", isOn: Bindable(settings).showInSystemSurfaces)
             }
         }

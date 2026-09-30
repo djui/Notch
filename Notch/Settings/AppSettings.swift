@@ -28,12 +28,13 @@ final class AppSettings {
         static let showLevels = "showLevels"
         static let showAudioDevices = "showAudioDevices"
         static let showShelf = "showShelf"
+        static let showOnAllDisplays = "showOnAllDisplays"
     }
 
     var openOnHover: Bool {
         didSet {
             UserDefaults.standard.set(openOnHover, forKey: Keys.openOnHover)
-            AppModel.shared.host.applyOpenOnHover()
+            AppModel.shared.hosts.applyOpenOnHover()
         }
     }
 
@@ -65,14 +66,14 @@ final class AppSettings {
     var showInSystemSurfaces: Bool {
         didSet {
             UserDefaults.standard.set(showInSystemSurfaces, forKey: Keys.showInSystemSurfaces)
-            AppModel.shared.host.applyOverlayPolicy()
+            AppModel.shared.hosts.applyOverlayPolicy()
         }
     }
 
     var layoutStyle: NotchLayoutStyle {
         didSet {
             UserDefaults.standard.set(layoutStyle.rawValue, forKey: Keys.layoutStyle)
-            AppModel.shared.host.applyLayoutStyle()
+            AppModel.shared.hosts.applyLayoutStyle()
         }
     }
 
@@ -161,6 +162,14 @@ final class AppSettings {
         didSet { UserDefaults.standard.set(showShelf, forKey: Keys.showShelf) }
     }
 
+    /// A notch on every connected display instead of only the one with a camera housing.
+    var showOnAllDisplays: Bool {
+        didSet {
+            UserDefaults.standard.set(showOnAllDisplays, forKey: Keys.showOnAllDisplays)
+            AppModel.shared.hosts.reconcile()
+        }
+    }
+
     var launchAtLogin: Bool
 
     var loginItemBlocked: Bool {
@@ -189,6 +198,7 @@ final class AppSettings {
         showLevels = Self.bool(Keys.showLevels, default: false)
         showAudioDevices = Self.bool(Keys.showAudioDevices, default: true)
         showShelf = Self.bool(Keys.showShelf, default: true)
+        showOnAllDisplays = Self.bool(Keys.showOnAllDisplays, default: false)
         if let stored = UserDefaults.standard.string(forKey: Keys.layoutStyle),
            let style = NotchLayoutStyle(rawValue: stored) {
             layoutStyle = style

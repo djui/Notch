@@ -33,8 +33,11 @@ final class NotchHost {
     private var visibility: NotchVisibility?
     private let morphAnimator = NotchMorphAnimator()
     private var workspaceObservers: [NSObjectProtocol] = []
+    /// The display this notch stays on. Nil follows the preferred display (and the hotkey to the pointer's).
+    let pinnedDisplayID: CGDirectDisplayID?
 
-    init() {
+    init(displayID: CGDirectDisplayID? = nil) {
+        pinnedDisplayID = displayID
         let geometry = NotchGeometry.current(style: .notch)
         self.geometry = geometry
         visualSize = geometry.collapsedSize
@@ -196,7 +199,11 @@ final class NotchHost {
     }
 
     private func currentGeometry(mouseScreenForHotkey: Bool = false) -> NotchGeometry {
-        .current(
+        if let pinnedDisplayID,
+           let screen = NSScreen.screens.first(where: { $0.displayID == pinnedDisplayID }) {
+            return .make(for: screen, style: AppModel.shared.settings.layoutStyle)
+        }
+        return .current(
             style: AppModel.shared.settings.layoutStyle,
             mouseScreenForHotkey: mouseScreenForHotkey
         )
@@ -264,7 +271,7 @@ final class NotchHost {
     }
 
     func toggleFromHotkey() {
-        geometry = currentGeometry(mouseScreenForHotkey: true)
+        geometry = currentGeometry(mouseScreenForHotkey: pinnedDisplayID == nil)
         if isPinned && isExpanded {
             collapse()
         } else {
@@ -313,17 +320,21 @@ final class NotchHost {
     }
 
     func openSettings() {
-        suppressHoverExpand = true
-        collapse(restoreApp: false)
-        panel?.setAcceptsKeyboard(false)
+        AppModel.shared.hosts.stepAside()
         SettingsWindowController.shared.show()
     }
 
     func openAbout() {
-        suppressHoverExpand = true
+        AppModel.shared.hosts.stepAside()
+        AboutWindowController.shared.show()
+    }
+
+    /// Collapses without restoring the previous app, so a window Notch opens can take focus.
+    func stepAside() {
+        // Keep the notch under the pointer from reopening until the pointer leaves it.
+        if isMouseInHoverTarget { suppressHoverExpand = true }
         collapse(restoreApp: false)
         panel?.setAcceptsKeyboard(false)
-        AboutWindowController.shared.show()
     }
 
     func openNowPlayingSource() {
