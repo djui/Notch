@@ -6,7 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-30
+
 - Add a setting to show the notch on every connected display.
+
 
 ## [1.2.0] - 2026-09-28
 
@@ -99,7 +102,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Expand and collapse stay anchored to the top center
 - Reopen a hidden or windowless player when clicking the Now Playing title
 
-[Unreleased]: https://github.com/djui/notch/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/djui/notch/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/djui/notch/releases/tag/v1.3.0
 [1.2.0]: https://github.com/djui/notch/releases/tag/v1.2.0
 [1.1.3]: https://github.com/djui/notch/releases/tag/v1.1.3
 [1.1.2]: https://github.com/djui/notch/releases/tag/v1.1.2
