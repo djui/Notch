@@ -8,7 +8,7 @@ Requires **macOS 15** or later. Website: [djui.github.io/notch](https://djui.git
 
 ## Install
 
-1. Download `Notch-1.2.0.zip` from the [latest release](https://github.com/djui/notch/releases/latest).
+1. Download `Notch-1.3.0.zip` from the [latest release](https://github.com/djui/notch/releases/latest).
 2. Unzip and move `Notch.app` to `/Applications`.
 3. Open the app.
 
