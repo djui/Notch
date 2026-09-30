@@ -8,7 +8,7 @@ Requires **macOS 15** or later. Website: [djui.github.io/notch](https://djui.git
 
 ## Install
 
-1. Download `Notch-1.2.0.zip` from the [latest release](https://github.com/djui/notch/releases/latest).
+1. Download `Notch-1.3.0.zip` from the [latest release](https://github.com/djui/notch/releases/latest).
 2. Unzip and move `Notch.app` to `/Applications`.
 3. Open the app.
 
@@ -30,6 +30,7 @@ Then open the app normally. First launch walks through permissions and enables l
 - **Shelf.** Drag files onto the notch to keep them at hand, drag them out again, or AirDrop them.
 - **Notches with a camera.** On MacBooks with a camera housing, collapsed content sits to the left and right of it, like the iPhone's Dynamic Island.
 - **Open.** Hover or click the notch. Hover can be turned off in Settings.
+- **Shows on every display** if you turn on Settings → App → Show on all displays.
 - **Hides by default** in fullscreen, Mission Control, games, and screen capture. That can be overridden in Settings.
 
 ## Permissions

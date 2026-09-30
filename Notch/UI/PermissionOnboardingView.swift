@@ -228,7 +228,7 @@ final class PermissionOnboardingController: NSObject, NSWindowDelegate {
         NSApp.activate(ignoringOtherApps: true)
         centerOnScreen()
         window?.makeKeyAndOrderFront(nil)
-        AppModel.shared.host.visibilityRefresh()
+        AppModel.shared.hosts.visibilityRefresh()
     }
 
     func restoreKey() {
@@ -247,7 +247,7 @@ final class PermissionOnboardingController: NSObject, NSWindowDelegate {
         }
         DispatchQueue.main.async {
             AccessoryWindowPolicy.refresh()
-            AppModel.shared.host.visibilityRefresh()
+            AppModel.shared.hosts.visibilityRefresh()
         }
     }
 

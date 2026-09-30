@@ -10,14 +10,12 @@ final class AppModel {
     let liveActivity = LiveActivityCenter()
     let agents = AgentActivityCenter()
     let shelf = ShelfStore()
-    let host: NotchHost
+    let hosts = NotchHosts()
     let statusItem = StatusItemController()
 
     private var started = false
 
-    private init() {
-        host = NotchHost()
-    }
+    private init() {}
 
     func start() {
         guard !started else { return }
@@ -26,8 +24,8 @@ final class AppModel {
         nowPlaying.start()
         liveActivity.start()
         agents.start()
-        host.start()
-        statusItem.install(host: host, settings: settings)
+        hosts.start()
+        statusItem.install(hosts: hosts, settings: settings)
         if firstLaunch {
             PermissionOnboardingController.shared.show()
         }
@@ -37,6 +35,6 @@ final class AppModel {
         nowPlaying.stop()
         liveActivity.stop()
         agents.stop()
-        host.stop()
+        hosts.stop()
     }
 }

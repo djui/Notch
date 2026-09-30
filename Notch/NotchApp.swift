@@ -30,7 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             AccessoryWindowPolicy.restoreKeyWindow()
             return false
         }
-        AppModel.shared.host.toggleFromHotkey()
+        AppModel.shared.hosts.toggleFromHotkey()
         return false
     }
 }
